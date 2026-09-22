@@ -1,92 +1,89 @@
 <p align="center">
-<img src="https://github.com/1zilc/fishing-funds/blob/main/build/icon.png?raw=true" width="128">
+<img src="https://github.com/thecoolboyhan/fishing-funds/blob/maintain-8.7.1/build/icon.png?raw=true" width="128">
 </p>
 
-# Fishing Funds
+# Fishing Funds（独立维护版）
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/1zilc/fishing-funds)
-![GitHub Release Date](https://img.shields.io/github/release-date/1zilc/fishing-funds)
-![GitHub all releases](https://img.shields.io/github/downloads/1zilc/fishing-funds/total)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/ee4fd509a7184f738eeb9048959b1f56)](https://app.codacy.com/gh/1zilc/fishing-funds?utm_source=github.com&utm_medium=referral&utm_content=1zilc/fishing-funds&utm_campaign=Badge_Grade_Settings)
-[![Build](https://github.com/1zilc/fishing-funds/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/1zilc/fishing-funds/actions/workflows/publish.yml)
-![GitHub top language](https://img.shields.io/github/languages/top/1zilc/fishing-funds?color=red)
-![GitHub package.json dependency version (dev dep on branch)](https://img.shields.io/github/package-json/dependency-version/1zilc/fishing-funds/dev/electron/main)
-![Sandbox](https://img.shields.io/badge/sandbox-yes-blueviolet)
-<a href="https://qm.qq.com/cgi-bin/qm/qr?k=Su4GnbsicHvsPrbLMwNu557LyZQO19KZ&jump_from=webapi"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-732268738-red" alt="QQ群" /></a>
-![GitHub](https://img.shields.io/github/license/1zilc/fishing-funds)
+![GitHub license](https://img.shields.io/github/license/thecoolboyhan/fishing-funds?color=blue)
 ![Windows](https://img.shields.io/badge/-Windows-blue?logo=windows&logoColor=white)
 ![MacOS](https://img.shields.io/badge/-macOS-black?&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/-Linux-yellow?logo=linux&logoColor=white)
 
-> 基金,大盘,股票,虚拟货币状态栏显示小应用,基于 Electron 开发,支持 MacOS,Windows,Linux 客户端,数据源来自天天基金,蚂蚁基金,同花顺-爱基金,腾讯证券等
+> 基金、大盘、股票、虚拟货币状态栏显示小应用，基于 Electron 开发，支持 macOS / Windows / Linux 客户端。数据源来自天天基金、蚂蚁基金、同花顺-爱基金、腾讯证券等。
 
-## 项目介绍
+## 关于本仓库
 
-- 采用天天基金等数据源接口，实时显示当前基金涨跌情况，计算显示收益，大盘实时数据，板块行情，股票走势，加密虚拟货币等
-- 软件中所有的数据仅供参考，一切收益或是亏损按当天实际为准，任何走势，排行数据均来自于第三方网站不代表作者观点
-- 软件不收集上传ai相关功能的用户apikey，如有疑问请忽略ai功能
-- 本项目是个人自用状态栏小插件，完全开源免费，仅供学习交流
+- 本项目代码**派生自 [`1zilc/fishing-funds`](https://github.com/1zilc/fishing-funds) v8.7.1**（GPL-3.0），现由本仓库**独立维护，与上游不再同步**。
+- 选择 v8.7.1 作为基线：官方 8.8.0 把数据层核心（东方财富反爬绕过逻辑）抽成了闭源子模块，公开源码无法独立编译。v8.7.1 数据层完整开源，**可自行构建、自行修复**，适合长期自维护。
+- 官方自动更新已关闭，构建产物只来自本仓库代码。
+
+## 功能特性
+
+- 采用天天基金等数据源接口，实时显示基金涨跌、估算收益，以及大盘实时数据、板块行情、股票走势、加密虚拟货币行情
+- 软件中所有数据仅供参考，收益或亏损以当天实际为准；走势、排行数据均来自第三方网站，不代表作者观点
+- 支持 OpenAI 兼容接口用于基金一键录入等 AI 功能，不收集、不上传用户的 API Key
+- 纯个人自用状态栏小插件，完全开源免费，仅供学习交流
 
 ## 数据源
 
-> 注意 ⚠️：不同的数据源可能会有反爬机制，刷新时的请求速度会有所差异
-> 强烈建议使用天天基金的数据源，最快同时估值也最准确
+> 注意 ⚠️：不同数据源可能有反爬机制，刷新时的请求速度会有差异。
+> 强烈建议使用天天基金的数据源，最快且估值最准确。
 
-- [东方财富-天天基金](https://fund.eastmoney.com/) ★★★★★ (推荐)
+- [东方财富-天天基金](https://fund.eastmoney.com/) ★★★★★（推荐）
 - [支付宝-蚂蚁基金](https://www.fund123.cn/) ★★★☆☆
 - [同花顺-爱基金](http://fund.10jqka.com.cn/) ★★★☆☆
 - [腾讯证券](https://stockapp.finance.qq.com/mstats/) ★★★☆☆
 
-## 下载使用
+## 下载与构建
 
-> 注意 ⚠️：由于 macOS 不允许打开未签名的程序，如果出现软件无法打开请进行以下操作 或[参考这里](https://github.com/1zilc/fishing-funds/issues/149)
+> 注意 ⚠️：macOS 不允许打开未签名程序，若无法打开请执行下方命令，或参考 [Apple 官方说明](https://support.apple.com/zh-cn/guide/mac-help/mh40616/mac)。
 
 ```bash
-# 终端执行
+# 终端执行，解除 quarantine 后即可打开
 sudo xattr -d com.apple.quarantine "/Applications/Fishing Funds.app"
 ```
 
 ```bash
 # 安全设置
-进入 「设置」- 「安全性与隐私」- 「通用」- 「允许从以下位置下载的App」-「仍然打开」
+进入「系统设置」-「隐私与安全性」-「仍要打开」
 ```
 
-- [官网下载](https://ff.1zilc.top)
-- [Homebrew 安装](https://formulae.brew.sh/cask/fishing-funds#default) `brew install --cask fishing-funds`
-- WinGet 安装 `winget install Fishing Funds`
+- **官方网站**：<https://your-blog.example.com>（待补充，将指向本人博客）
+- **本地构建**（需 Node ≥ 22.8）：
 
-> 旧版系统
+```bash
+npm install --ignore-scripts                                  # 跳过 phantomjs 等会下载二进制的 postinstall
+node node_modules/electron/install.js                          # 单独下载 Electron 运行时
+npm run build                                                  # 产出 release/app/dist
+npm run package-mac                                            # 打包 macOS dmg（未签名）
+```
 
-- [windows 7/8 下载](https://github.com/1zilc/fishing-funds/releases/tag/v7.0.2)
-- [macOS 10.13/10.14 下载](https://github.com/1zilc/fishing-funds/releases/tag/v8.1.0)
-- [macOS 10.15 下载](https://github.com/1zilc/fishing-funds/releases/tag/v8.2.3)
-- [macOS 11 下载](https://github.com/1zilc/fishing-funds/releases/tag/v8.5.1)
-
-## 讨论交流
-
-- QQ 群: [732268738](https://download.1zilc.top/ff/screenshots/group1.jpg)
-- Issue: [#106](https://github.com/1zilc/fishing-funds/issues/106)
-
-## AI
-
-FIshing Funds 支持 OpenAI Compatibility 接口用于基金一键录入等，不会收集上传用户 apikey，如有疑问请忽略 ai 相关功能
-
-- 基金导入（推荐模型 Grok4、Gemini 2.5 pro、 Qwen2.5vl:32b 及以上）
+> 说明：开发热更新（`npm run dev`）依赖 bun；`build` / `package-*` 仅需 electron-vite + electron-builder，无需 bun。
 
 ## 系统代理
 
-- 由于众所周知的原因，部分货币接口无法访问，Fishing Funds 已适配系统代理访问
-- 支持 http 代理、socks 代理
-- 自行将以下货币接口加入自己的代理软件规则中，并重启 Fishing Funds
+- 由于网络原因，部分货币接口可能无法直接访问，本应用已适配系统代理访问
+- 支持 HTTP 代理、SOCKS 代理
+- 将以下货币接口加入你的代理软件规则并重启应用即可：
 
 ```
 api.coingecko.com
 api.coincap.io
 ```
 
+## AI 识别录入
+
+支持 AI 识别截图导入基金数据，需使用具备视觉能力的大模型（推荐 gpt-4o、grok、gemini-2.5-pro、qwen2.5vl:32b 及以上）。
+
+> 注意 ⚠️：请确保接口地址安全，应用不保证识别过程中的数据不会泄露至第三方，使用前请完全了解该功能。
+
+- 使用 OpenAI 兼容接口，在「设置 - AI」中配置请求地址与 API Key
+- 进入某宝 - 理财 - 总资产 - 我的资产 - 全部持有
+- 长截图，保证暴露基金名称、持有收益、累计收益三项数据
+
 ## 导入导出
 
-Fishing Funds 右键菜单支持导入导出基金 JSON 配置方便备份
+右键菜单支持导入 / 导出基金 JSON 配置，便于备份。
 
 ```typescript
 // 字段说明
@@ -98,60 +95,30 @@ interface FundSetting {
 }
 ```
 
-例子：
+示例：
 
 ```json
 [
-  {
-    "code": "320007",
-    "name": "诺按成长混合",
-    "cyfe": 1000.0,
-    "cbj": 1.6988
-  },
-  {
-    "code": "161725",
-    "name": "招商中证白酒指数(LOF)",
-    "cyfe": 1000.0,
-    "cbj": 1.4896
-  }
+  { "code": "320007", "name": "诺安成长混合", "cyfe": 1000.0, "cbj": 1.6988 },
+  { "code": "161725", "name": "招商中证白酒指数(LOF)", "cyfe": 1000.0, "cbj": 1.4896 }
 ]
 ```
 
-## AI 识别录入
-Fishing Funds支持AI识别截图导入数据，确保模型具有vision功能，推荐gpt-4o、grok4、gemini2.5-pro、qwen2.5vl:32b及更好的大模型。
-> 注意 ⚠️：请确保接口地址的安全性，本软件不保证识别过程中的数据不会泄露至第三方，使用时请确保完全了解该功能
-
-- 使用openai兼容接口，在设置-AI中配置请求地址与apikey
-- 进入某宝-理财-总资产-我的资产-全部持有
-- 长截图，保证暴露基金名称、持有收益、累计收益三项数据
-  
-
 ## 配置同步
 
-- 设置中开启后自动存储配置文件至指定路径，启动时优先读取该路径配置
-- 通过 iCloud、OneDrive 等方式自动同步该文件至云端实现多台设备配置同步
-- 支持钱包，基金，指数，板块，股票，货币，h5 配置同步
+- 在设置中开启后，自动将配置文件存储至指定路径，启动时优先读取该路径配置
+- 通过 iCloud、OneDrive 等方式同步该文件至云端，实现多设备配置同步
+- 支持钱包、基金、指数、板块、股票、货币、H5 配置同步
 
-## 支持作者
+## 问题反馈
 
-作者利用空闲时间开发不易，您的支持可以给本项目的开发和完善提供巨大的动力，感谢对本软件的喜爱和认可:)
+- 有问题或建议请在本仓库提交 **Issue**：<https://github.com/thecoolboyhan/fishing-funds/issues>
+- 如果本项目对你有帮助，欢迎点个 Star ⭐
 
-| 微信                                                                      | 支付宝                                                                    |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| <img src="https://download.1zilc.top/ff/qrcode/wechat.png" width="108" /> | <img src="https://download.1zilc.top/ff/qrcode/alipay.png" width="108" /> |
+## 致谢（上游依赖）
 
-## 收录网站
+本项目的 UI 与数据层代码派生自 [`1zilc/fishing-funds`](https://github.com/1zilc/fishing-funds) v8.7.1，并在此基础上独立维护。同时感谢以下开源项目：
 
-- [柠檬精选](https://lemon.qq.com/lab/app/FishingFunds.html)
-- [Electron Apps](https://www.electronjs.org/apps/fishing-funds)
-- [MacWk](https://www.macwk.com/soft/fishing-funds)
-- [Homebrew](https://formulae.brew.sh/cask/fishing-funds#default)
-- [Awesome Mac](https://github.com/jaywcjlove/awesome-mac)
-- [WinGet](https://github.com/microsoft/winget-pkgs)
-
-## 感谢
-
-- [Jr Prévost](https://github.com/3on)
 - [electron-vite](https://github.com/alex8088/electron-vite)
 - [menubar](https://github.com/maxogden/menubar)
 - [Ant Design](https://github.com/ant-design/ant-design/)
@@ -161,8 +128,6 @@ Fishing Funds支持AI识别截图导入数据，确保模型具有vision功能�
 
 ## 许可证
 
-- [GPLv3](https://github.com/1zilc/fishing-funds/blob/main/LICENSE)
+本项目基于 GPL-3.0 开源。原项目及本派生版本均遵循 GPL-3.0：个人自用 / 自构建零义务；若对外发布，须保持 GPL-3.0 并公开你的修改源码。
 
-## Star Charts
-
-[![Stargazers over time](https://starchart.cc/1zilc/fishing-funds.svg)](https://starchart.cc/1zilc/fishing-funds)
+- [LICENSE](https://github.com/thecoolboyhan/fishing-funds/blob/maintain-8.7.1/LICENSE)
