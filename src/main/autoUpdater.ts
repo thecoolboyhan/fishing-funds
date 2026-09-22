@@ -96,7 +96,17 @@ export default class AppUpdater {
     });
   }
 
+  // fork 维护开关：默认关闭自动更新，避免向官方源 1zilc/fishing-funds 拉取更新。
+  // 如需启用你自己 fork 的自动更新：
+  //   1) 在 package.json 的 build.publish 填入你自己的 GitHub owner/repo；
+  //   2) 将下方常量改为 true。
+  const AUTO_UPDATE_ENABLED = false;
+
   public checkUpdate(process: 'mainer' | 'renderer') {
+    if (!AUTO_UPDATE_ENABLED) {
+      console.info('[fork] 自动更新已关闭，如需启用请修改 src/main/autoUpdater.ts 的 AUTO_UPDATE_ENABLED');
+      return;
+    }
     this.process = process;
 
     try {

@@ -88,13 +88,7 @@
       },
       "category": "Financial"
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "1zilc",
-        "repo": "fishing-funds"
-      }
-    ]
+    "publish": []
   },
   "repository": {
     "type": "git",
