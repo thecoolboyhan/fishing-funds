@@ -11,10 +11,10 @@
 
 ## 已做的维护化改造（本分支 `maintain-8.7.1`）
 
-1. **远端**：官方仓库已重命名为 `upstream`（`git remote -v` 查看）。当你在 GitHub 上建好自己的 fork 后：
+1. **远端**：官方仓库已重命名为 `upstream`；本 fork **已发布到 `origin` = `https://github.com/thecoolboyhan/fishing-funds.git`**（公开仓库，默认分支 `maintain-8.7.1`）。已推送：`maintain-8.7.1` 分支 + `fork-base-8.7.1` 锚点标签（**未**推送官方 v1~v8.8.0 那堆标签，避免把闭源 8.8.0 带上去）。
    ```bash
-   git remote add origin https://github.com/<你的用户名>/fishing-funds.git
-   # 之后推送到你自己的 fork：git push -u origin maintain-8.7.1
+   git remote -v   # origin=thecoolboyhan/fishing-funds, upstream=1zilc/fishing-funds
+   git push origin maintain-8.7.1   # 日常推送维护分支
    ```
 2. **基线标签**：`fork-base-8.7.1` 固定在官方 v8.7.1 提交（191305f），随时可回滚对照。
 3. **自动更新已关闭**：`src/main/autoUpdater.ts` 中 `AUTO_UPDATE_ENABLED = false`，默认不再向官方源 `1zilc/fishing-funds` 拉更新（避免被官方 8.8.0 覆盖、也避免无数据层的版本污染）。
@@ -53,6 +53,14 @@ sudo xattr -d com.apple.quarantine "/Applications/Fishing Funds.app"
 ```
 
 如需分发给他人，需要 **$99/年的 Apple Developer 证书**做公证（notarization）。
+
+## 推送到 GitHub 的注意事项（网络坑）
+
+本机走 **Clash Verge Rev + edgetunnel（TUN 增强模式）**，所有流量在网卡层被拦截。在该代理下，**git 走 HTTPS 推送（`git-receive-pack` 大体积 POST）会被代理返回 `HTTP 408`**，无论包大小（连 50 个提交的小包也 408），但 GET / API 小请求正常。
+
+- **解决：推送前先关掉 Clash（或让 github 走直连规则）**，再 `git push`（已验证可行）。
+- 若必须走代理环境，改用 **SSH 推送**（`ssh -T git@github.com` 能连到 GitHub，只是 key 需先注册到账号）：`git remote set-url origin git@github.com:thecoolboyhan/fishing-funds.git`。
+- 用 token 调 `POST /user/keys` 自动注册 SSH key 会被拒（本机 Keychain 的 GitHub token 无 `write:public_key` 权限，返回 404），SSH key 需手动在 GitHub Settings → SSH and GPG keys 添加。
 
 ## 后续维护要点
 

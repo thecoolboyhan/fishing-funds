@@ -148,11 +148,8 @@ fishing-funds/
 
 ### 待办（多为需人类动手 / 外部操作）
 
-- [ ] **GitHub 远端 fork（需人类手动）**：本机无 `gh` CLI、且无法在沙箱网页操作。步骤见 `FORK_README.md`：
-  ```bash
-  git remote add origin https://github.com/<你的用户名>/fishing-funds.git
-  git push -u origin maintain-8.7.1 --tags
-  ```
+- [x] **GitHub 远端已发布**（2026-09-22 完成）：仓库 `https://github.com/thecoolboyhan/fishing-funds.git`（公开，默认分支 `maintain-8.7.1`），已 push 分支 + `fork-base-8.7.1` 锚点标签。**未推官方 v1~v8.8.0 标签**（避免闭源 8.8.0）。
+  - ⚠️ **推送网络坑**：本机 Clash TUN 代理下 git HTTPS push 会被返回 `HTTP 408`（smart-HTTP receive-pack 被拦截），**推送前先关 Clash 或让 github 走直连**；或改用 SSH（`git@github.com:thecoolboyhan/fishing-funds.git`）。详见 `FORK_README.md`。
 - [ ] （可选）自签名 / Apple 公证打包：当前 `npm run package-mac` 产未签名 dmg，macOS 首次运行需 `sudo xattr -d com.apple.quarantine /Applications/fishing-funds.app`。
 - [ ] （可选）维护工作流文档化：如何在保持 8.7.1 基线的前提下，把 upstream 的安全/数据修复 cherry-pick 进来，同时排除 8.8.0 闭源改动。
 
@@ -177,7 +174,10 @@ npm run dev          # 开发预览（菜单栏小窗）
 npm run build        # 构建到 release/app/dist（已验证通过）
 npm run package-mac  # 打未签名 dmg
 npm run preview      # 预览构建产物
+git push origin maintain-8.7.1   # 推维护分支（⚠️ 见下方红线：代理下会 408）
 ```
+
+> **推送 GitHub 的坑**：本机 Clash TUN 代理下 `git push`（HTTPS）必被返回 `HTTP 408`（smart-HTTP `git-receive-pack` 被拦截），与包大小无关。推送前先**关掉 Clash / 让 github 走直连**，或改用 SSH 远端 `git@github.com:thecoolboyhan/fishing-funds.git`。GET/API 小请求不受影响。
 
 ### 关键文件速记
 
