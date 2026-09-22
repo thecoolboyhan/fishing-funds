@@ -33,6 +33,17 @@ npm run package-mac    # 打包 macOS dmg（arm64 + x64）
 
 > 说明：`package.json` 的 `dev` 脚本用 `bunx --bun`，开发热更新需装 [bun](https://bun.sh)；但 `build` / `package-*` 仅用 electron-vite + electron-builder，无需 bun。
 
+### 安装注意事项（踩坑记录）
+
+- **依赖管理用 pnpm（首选）**：仓库带 `pnpm-lock.yaml`，`pnpm install` 会按锁文件精确安装（例如 `@nivalis/string-similarity` 锁定 `5.0.0`）。
+- **`@nivalis/string-similarity` 已钉死为精确 `5.0.0`**：原 `package.json` 写的是 `^5.0.0`，用 npm 会解析到 `5.2.0`（ESM-only），导致 `electron-vite build` 报 *Failed to resolve entry*。已改为精确 `5.0.0`（与锁文件一致、CJS 可构建）。
+- **`phantomjs-prebuilt` 的 postinstall 会去下载 PhantomJS 二进制，该依赖 App 用不到且下载源常不可达**：若 `pnpm install` / `npm install` 卡在 phantomjs 下载，改用：
+  ```bash
+  npm install --ignore-scripts --os=darwin --cpu=arm64   # 跳过所有 postinstall
+  node node_modules/electron/install.js                   # 单独下载 Electron 二进制
+  ```
+- **macOS 上 `devEngines.packageManager` 已移除**：原仓库声明 `npm` 但 `pnpm-lock.yaml` 证明实际用 pnpm，且该字段写的 `>=10.9.x` 非法 semver，会导致 pnpm/npm 安装直接报错。已删掉，仅保留 Node 运行时版本检查。
+
 ### macOS 未签名运行
 
 官方与 fork 默认都未签名。本地构建后若无法打开：
