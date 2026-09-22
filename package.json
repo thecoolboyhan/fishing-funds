@@ -163,6 +163,9 @@
   },
   "dependencies": {
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
     "@json2csv/plainjs": "^7.0.6",
     "@nivalis/string-similarity": "5.0.0",
     "electron-log": "^5.4.3",

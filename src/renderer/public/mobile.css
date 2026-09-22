@@ -1,0 +1,25 @@
+/* Fishing Funds — 移动端(安卓)最小响应式适配。
+   桌面端不受影响：以下规则仅作用于 .platform-android（由 index.html 桥引导脚本注入）或窄屏媒体查询。
+   更完整的移动端 UX（底部 Tab 导航、响应式面板）见 ARCHITECTURE.md §5，属下一轮迭代。 */
+
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+/* 安卓全屏 WebView：充满视口、禁横向溢出、关点击高亮、隐藏滚动条 */
+.platform-android {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+.platform-android body,
+.platform-android #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.platform-android ::-webkit-scrollbar { width: 0; height: 0; }
+
+/* 窄屏（含安卓手机）下：让为小窗设计的 UI 撑满屏宽，点按目标放宽更好触 */
+@media (max-width: 600px) {
+  #root { width: 100% !important; }
+  button, .ant-btn, [role="button"], a { min-height: 36px; }
+}

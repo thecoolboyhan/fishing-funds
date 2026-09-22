@@ -1,9 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- ⚠️ 架构铁律运行时保障（见 ARCHITECTURE.md §2）：多端统一桥引导。
+         Electron 端预加载已暴露 window.contextModules，这里直接 return 跳过；
+         Android(Capacitor) 端惰性委托 window.Capacitor.Plugins.ContextModules，带 ready 重试。
+         禁止删除或外置本脚本。 -->
+    <script>
+      (function () {
+        if (window.contextModules) return; // Electron 预加载已提供，跳过
+        var cap = function () {
+          return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ContextModules;
+        };
+        var noop = function () { return Promise.resolve(undefined); };
+        // 直到 Capacitor 插件就绪再真正调用（最多 ~6s，每 30ms 重试），彻底消除时序问题
+        var whenReady = function (invoke) {
+          return new Promise(function (resolve, reject) {
+            var attempt = 0;
+            var tick = function () {
+              var p = cap();
+              if (p) {
+                try { invoke(p).then(resolve, reject); } catch (e) { reject(e); }
+              } else if (attempt++ < 200) {
+                setTimeout(tick, 30);
+              } else {
+                reject(new Error('[contextModules] Capacitor ContextModules plugin not ready'));
+              }
+            };
+            tick();
+          });
+        };
+        var unwrap = function (res) { return (res && res.__wrapped) ? res.value : res; }; // 解包安卓插件的原始值信封（含基本类型）
+        window.contextModules = {
+          request: function (url, config) { return whenReady(function (p) { return p.request({ url: url, config: config }); }); },
+          process: {
+            production: true,
+            platform: 'android',
+            electron: '-',
+            node: '-',
+            v8: '-',
+            chrome: String((navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1] || '-'),
+            arch: 'arm64',
+            buildDate: String(Date.now()),
+            sandboxed: false,
+          },
+          electron: {
+            shell: { openExternal: function (url) { return whenReady(function (p) { return p.openExternal({ url: url }); }); } },
+            ipcRenderer: { invoke: noop, on: function () { return null; }, removeListener: noop, removeAllListeners: noop },
+            dialog: { showMessageBox: noop, showSaveDialog: noop, showOpenDialog: noop },
+            app: {
+              setLoginItemSettings: noop,
+              quit: noop,
+              relaunch: noop,
+              getVersion: function () { return whenReady(function (p) { return p.getVersion(); }).then(unwrap); },
+            },
+            clipboard: {
+              readText: function () { return whenReady(function (p) { return p.readText(); }).then(unwrap); },
+              writeText: function (t) { return whenReady(function (p) { return p.writeText({ value: t }); }); },
+              writeImage: noop,
+            },
+          },
+          io: {
+            saveImage: function (p, d) { return whenReady(function (pl) { return pl.saveImage({ path: p, dataUrl: d }); }); },
+            saveJsonToCsv: function (p, j) { return whenReady(function (pl) { return pl.saveJsonToCsv({ path: p, json: j }); }); },
+            saveString: function (p, c) { return whenReady(function (pl) { return pl.saveString({ path: p, content: c }); }); },
+            readStringFile: function (p) { return whenReady(function (pl) { return pl.readStringFile({ path: p }); }).then(unwrap); },
+            readFile: function (p) { return whenReady(function (pl) { return pl.readFile({ path: p }); }).then(unwrap); },
+          },
+          electronStore: {
+            get: function (type, key, init) { return whenReady(function (p) { return p.storeGet({ type: type, key: key, init: init }); }).then(unwrap); },
+            set: function (type, key, data) { return whenReady(function (p) { return p.storeSet({ type: type, key: key, data: data }); }); },
+            delete: function (type, key) { return whenReady(function (p) { return p.storeDelete({ type: type, key: key }); }); },
+            cover: function (type, data) { return whenReady(function (p) { return p.storeCover({ type: type, data: data }); }); },
+            all: function (type) { return whenReady(function (p) { return p.storeAll({ type: type }); }).then(unwrap); },
+          },
+        };
+        if (!window.process) window.process = window.contextModules.process; // WebView 无 Node 全局 process
+        document.documentElement.classList.add('platform-android'); // 供响应式 CSS 使用
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' data: blob:" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="stylesheet" href="./mobile.css" />
     <title>Fishing Funds</title>
   </head>
   <body>

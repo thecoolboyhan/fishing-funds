@@ -1,7 +1,21 @@
 # AGENTS.md — 给接手 AI 的维护手册
 
 > 本文件面向**后续接手本项目维护的其他 AI（或人类）**。读完后应能独立完成构建、定位改动点、并知道哪些是红线。
-> 配套文档：`FORK_README.md`（面向人类维护者的踩坑与操作清单）。两文件互补，本文件更偏向"结构与决策"，FORK_README 更偏向"操作步骤"。
+> 配套文档：`FORK_README.md`（面向人类维护者的踩坑与操作清单）、`ARCHITECTURE.md`（**多端架构契约与桥定义，改代码前必读**）。三文件互补：本文件偏"操作与红线速查"，ARCHITECTURE 偏"为什么这样设计"，FORK_README 偏"操作步骤"。
+
+---
+
+## 0. 架构铁律（最高优先级，先看；破坏即视为回归）
+
+> 本项目已从"Electron 单端"演化为 **mac/win/linux 状态栏小应用 + Android 全屏应用 四端共用一份 `src/renderer`** 的架构（分支 `android-capacitor`）。下面 5 条是**不可破坏的不变式**，详见 `ARCHITECTURE.md` §1。改任何代码前先默念一遍。
+
+1. **`src/renderer` 必须平台无关、单份源码**：四端共用同一份 renderer，**禁止为某端另起 renderer 副本**（否则开始"漂移"，再也合不回）。
+2. **所有平台差异只走 `window.contextModules` 桥**：请求→`contextModules.request`、配置→`contextModules.electronStore`、外链→`contextModules.electron.shell.openExternal`、剪贴板→`contextModules.electron.clipboard`、文件→`contextModules.io`、平台识别→`contextModules.process.platform`。**禁止**在 renderer 里直接 `fetch` 第三方/`localStorage`/`window.open`/`navigator.clipboard`/读 `navigator.userAgent`。
+3. **禁止把桌面假设写进 renderer**：窗口/Tray/菜单栏/开机启动等桌面概念不得硬编码进组件；确需按端区分 UI，用 `if (process.platform === 'android')` 条件渲染。
+4. **桥契约两端同步**：动 `contextModules` 成员签名，必须同时改 `src/preload/index.ts`（Electron）+ `android/.../ContextModulesPlugin.java`（安卓）+ `src/renderer/typings/preload.d.ts`（类型）。返回 `{ body, headers }` 形状、Promise 语义须一致。
+5. **安卓壳是"壳"不是"fork"**：`android/` 只包 WebView、提供桥，**业务逻辑全在 renderer**，不得搬进 Kotlin 层。
+
+> `src/renderer/index.html` 的 **inline 桥引导脚本是铁律 2/4 的运行时保障，禁止删除或改成外部文件**（Electron 端它直接 `return` 跳过，安卓端惰性委托 Capacitor 插件并带 ready 重试）。
 
 ---
 
@@ -162,6 +176,7 @@ fishing-funds/
 3. **依赖与安全更新**：在保持 `@nivalis/string-similarity@5.0.0` 的前提下，定期评估 `npm audit`，升级有 CVE 的传递依赖（用 `npm`，不要回退到 pnpm 以免沙箱 EPERM）。
 4. **自更新（可选）**：若对外发布，部署自己的 GitHub Releases 作为 `build.publish` 目标，并把 `AUTO_UPDATE_ENABLED` 改 `true`；注意 GPL-3.0 须同步公开源码。
 5. **跨平台**：当前重点 macOS；Windows/Linux 打包配置（`build.win` / `build.linux`）已存在，按需本地验证。
+6. **多端共用一份 renderer（android-capacitor 分支，进行中）**：mac/win/linux 状态栏小应用 + Android 全屏应用四端共用 `src/renderer`。安卓壳用 Capacitor 6（`android/` 工程 + `ContextModulesPlugin.java` 原生桥）；`contextModules` 桥引导在 `src/renderer/index.html` 内联注入。**架构契约与桥定义见 `ARCHITECTURE.md`，改动前必读。**
 
 ---
 
@@ -175,6 +190,12 @@ npm run build        # 构建到 release/app/dist（已验证通过）
 npm run package-mac  # 打未签名 dmg
 npm run preview      # 预览构建产物
 git push origin maintain-8.7.1   # 推维护分支（⚠️ 见下方红线：代理下会 408）
+
+# —— 安卓端（Capacitor，android-capacitor 分支）——
+npm run build                 # 先产出 release/app/dist/renderer
+npx cap sync android          # 把 web 资源同步进 android/ 工程
+cd android && ./gradlew assembleDebug   # 产 app-debug.apk（需 JDK17 + ANDROID_HOME，首次会下 Gradle）
+# 安卓桥实现：android/app/src/main/java/com/thecoolboyhan/fishingfunds/plugins/ContextModulesPlugin.java
 ```
 
 > **推送 GitHub 的坑**：本机 Clash TUN 代理下 `git push`（HTTPS）必被返回 `HTTP 408`（smart-HTTP `git-receive-pack` 被拦截），与包大小无关。推送前先**关掉 Clash / 让 github 走直连**，或改用 SSH 远端 `git@github.com:thecoolboyhan/fishing-funds.git`。GET/API 小请求不受影响。
@@ -196,6 +217,9 @@ git push origin maintain-8.7.1   # 推维护分支（⚠️ 见下方红线：�
 - ❌ **不要把 `build.publish` 指回官方 `1zilc` 源**，也不要在 `AUTO_UPDATE_ENABLED=false` 未评估的情况下开启自更新（会向官方拉更新）。
 - ❌ **不要在 `devEngines` 里写非法 semver 或非 pnpm 的 packageManager 声明**（会导致安装报错）。
 - ❌ **不要 `git merge upstream/main` 整个主干**（会带入 8.8.0 闭源改动）；如需上游修复，用 `git cherry-pick <commit>` 精选，并人工排除闭源部分。
+- ❌ **不要破坏 `ARCHITECTURE.md` 里的 5 条架构铁律**（多端共用一份 renderer / 差异只走 `contextModules` 桥 / 桌面假设不进 renderer / 桥契约两端同步 / 安卓壳只是壳）。改代码前先读 `ARCHITECTURE.md`。
+- ❌ **不要删除或外置 `src/renderer/index.html` 里的 inline 桥引导脚本**（它是铁律的运行时保障；Electron 端自动跳过，安卓端惰性委托 Capacitor 插件）。
+- ❌ **不要在 `src/renderer` 里直接 `fetch` 第三方 / 用 `localStorage` 作主存储 / `window.open` 外链 / `navigator.clipboard` / 读 `navigator.userAgent` 判断平台**——这些都违反铁律 2，必须用 `contextModules` 桥。
 
 ### 数据源失效时的第一动作
 
@@ -206,4 +230,4 @@ git push origin maintain-8.7.1   # 推维护分支（⚠️ 见下方红线：�
 
 ---
 
-_最后更新：2026-09-22（fork 创建 + 维护化改造完成，构建已验证通过）。_
+_最后更新：2026-09-22（fork 创建 + 维护化改造完成；android-capacitor 分支落地 Capacitor 双壳方案，新增 `ARCHITECTURE.md` 固化架构铁律）。_
