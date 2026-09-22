@@ -120,7 +120,7 @@
     "echarts",
     "funds"
   ],
-  "homepage": "https://thecoolboyhan.github.io/",
+  "homepage": "https://thecoolboyhan.github.io/p/fishing-funds/",
   "devDependencies": {
     "@reduxjs/toolkit": "^2.9.1",
     "@types/color": "^4.2.0",

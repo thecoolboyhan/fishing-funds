@@ -48,7 +48,7 @@ sudo xattr -d com.apple.quarantine "/Applications/Fishing Funds.app"
 进入「系统设置」-「隐私与安全性」-「仍要打开」
 ```
 
-- **官方网站**：<https://thecoolboyhan.github.io/>
+- **官方网站**：<https://thecoolboyhan.github.io/p/fishing-funds/>
 - **本地构建**（需 Node ≥ 22.8）：
 
 ```bash
