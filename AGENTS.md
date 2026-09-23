@@ -274,8 +274,63 @@ cd android && ./gradlew assembleDebug   # 产 app-debug.apk（需 JDK17 + ANDROI
 
 ---
 
+## 8. 安卓打包与发布（已跑通，照抄即可）
+
+### 打正式签名包
+
+```bash
+npm run build && npx cap sync android      # 先把 web 资源同步进 assets（assets 不入库，必须先做）
+cd android && ./gradlew clean assembleRelease
+# 产物：android/app/build/outputs/apk/release/app-release.apk
+```
+
+**签名**：读取 `android/keystore.properties`（与 `*.jks` 密钥本身**都不入库**，根 `.gitignore` 已覆盖）。
+文件缺失时签名配置整段不生效 → 构建回退为「不签名」，不会因缺密钥而失败（但 unsigned 包装不上）。
+
+> ⚠️ **签名密钥是应用身份，一旦发布就不能换**（换了签名，老用户无法覆盖安装，必须卸载重装、丢本地配置）。
+> 本仓库的 release 密钥路径写在 `android/keystore.properties` 里（该文件只存在于打包机器上）——
+> **换机器前请先把这个文件与 `.jks` 一起带走**，否则以后无法给已发布的版本升级。
+
+版本号在 `android/app/build.gradle`：当前 `versionCode 2` / `versionName 8.7.1-fork.1`。
+**每次要发布的新包，`versionCode` 必须比上一个大**，否则 Android 视作同一版本。
+
+验包（可选但推荐）：
+```bash
+$ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs app-release.apk
+$ANDROID_HOME/build-tools/34.0.0/aapt dump badging app-release.apk | head -2
+shasum -a 256 app-release.apk
+```
+
+### 发布到 GitHub Release
+
+```bash
+# 提交 + 打标签（tag 名与 versionName 对齐，便于回溯）
+git tag -a v8.7.1-fork.N -m "…"
+# ⚠️ 本机 Clash TUN 下 HTTPS push 会被返回 408，必须绕开代理：
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy git push origin android-capacitor
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy git push origin v8.7.1-fork.N
+```
+
+然后建 release 并上传 APK。本机**没装 `gh`**，用 REST API：
+凭据可从钥匙串取（`git credential-osxkeychain get`，无需新建 token），
+`POST /repos/<owner>/<repo>/releases` 建 release，
+`POST https://uploads.github.com/repos/<owner>/<repo>/releases/<id>/assets?name=<文件名>`
+上传（**`Content-Type` 必须显式设为 `application/vnd.android.package-archive`**，
+否则报 `content_type can't be application/x-www-form-urlencoded`，这个坑踩过）。
+
+发布后务必**实际下载一次并比对 SHA-256**，确认资产真的可下载：
+```bash
+curl -sSL -o /tmp/t.apk -w "http=%{http_code} size=%{size_download}\n" <browser_download_url>
+shasum -a 256 /tmp/t.apk
+```
+
+> 注意：`GET /releases/tags/<tag>` 的响应有边缘缓存，**刚上传完立刻查可能看不到 assets**，
+> 用 `GET /releases/<id>` 复核，或直接看下载是否 200。
+
+---
+
 _最后更新：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
 catch 回 `__failed` + `index.html` inline 桥 `webviewFetch`），修复股票/指数行情、分时、K线与详情页全空；
 `mobile.css` 去掉给所有 button/a 的 min-height（它把固定 32px 的 SortBar 撑溢出，导致「管理」等文字偏上）。
-改动集中在 `ContextModulesPlugin.java`、`src/renderer/index.html`、`public/mobile.css`、`utils/index.ts`（仅加注释），
-**均未提交**。基金默认源 `fundgz` 被 CDN 拦已定性为环境问题，切「基金接口 → 同花顺」即恢复。）_
+**已提交并发布 v8.7.1-fork.1**（`9727716`，release 资产 `fishing-funds-android-8.7.1-fork.1.apk`）。
+基金默认源 `fundgz` 被 CDN 拦已定性为环境问题，切「基金接口 → 同花顺」即恢复。）_
