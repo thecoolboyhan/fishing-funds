@@ -21,12 +21,28 @@ export interface WalletState {
   stockConfigCodeMap: Stock.CodeMap;
 }
 
+/**
+ * 首次启动的默认自选（仅在本地没有已保存的 WALLET_SETTING 时生效，不会覆盖既有配置）。
+ * 目的是让新装环境（尤其是安卓端）开箱就有数据可看：列表有行、详情/图表点得进去。
+ * 其中基金 000001 与股票 600519 带了少量持仓（cyfe/cbj），用于验证「持有金额 / 收益率」相关 UI；
+ * 数值是示意值，按需在界面上编辑即可。
+ */
 export const defaultWallet: Wallet.SettingItem = {
   name: '默认钱包',
   iconIndex: 0,
   code: '-1',
-  funds: [],
-  stocks: [],
+  funds: [
+    { name: '华夏成长混合', code: '000001', cyfe: 1000, cbj: 1.2 },
+    { name: '诺安成长混合', code: '320007', cyfe: 0 },
+    { name: '招商中证白酒指数(LOF)A', code: '161725', cyfe: 0 },
+    { name: '易方达蓝筹精选混合', code: '005827', cyfe: 0 },
+  ],
+  stocks: [
+    { market: 1, code: '600519', secid: '1.600519', name: '贵州茅台', type: 1, cyfe: 100, cbj: 1400 },
+    { market: 0, code: '000001', secid: '0.000001', name: '平安银行', type: 1, cyfe: 0 },
+    { market: 1, code: '601318', secid: '1.601318', name: '中国平安', type: 1, cyfe: 0 },
+    { market: 0, code: '300750', secid: '0.300750', name: '宁德时代', type: 1, cyfe: 0 },
+  ],
 };
 
 const initialState: WalletState = {

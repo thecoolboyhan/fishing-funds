@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.util.Base64;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import com.getcapacitor.JSArray;
@@ -19,6 +20,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,6 +48,8 @@ import java.util.Map;
  */
 @CapacitorPlugin(name = "ContextModules")
 public class ContextModulesPlugin extends Plugin {
+
+    private static final String TAG = "ContextModules";
 
     private String secret;
 
@@ -115,15 +119,34 @@ public class ContextModulesPlugin extends Plugin {
                 }
 
                 int code = conn.getResponseCode();
-                InputStream in = (code >= 400 && conn.getErrorStream() != null) ? conn.getErrorStream() : conn.getInputStream();
+                // 与 Electron(undici) 契约对齐：4xx/5xx 也要返回响应体；
+                // 响应体为空时必须给空串，绝不能整包丢弃（原实现遇 4xx 且 errorStream 为 null 会抛异常 → {}）
+                InputStream in;
+                if (code >= 400) {
+                    in = conn.getErrorStream();
+                    if (in == null) in = new ByteArrayInputStream(new byte[0]);
+                } else {
+                    in = conn.getInputStream();
+                }
                 byte[] data = readAll(in);
-                if (in != null) in.close();
+                in.close();
 
                 JSObject result = new JSObject();
                 if ("json".equals(responseType)) {
-                    result.put("body", parseJson(new String(data, StandardCharsets.UTF_8)));
+                    String text = new String(data, StandardCharsets.UTF_8);
+                    if (text.isEmpty()) {
+                        // 空响应体：桌面端 body.json() 会抛错并落到 {}，此处显式对齐
+                        final JSObject empty = new JSObject();
+                        getActivity().runOnUiThread(() -> call.resolve(empty));
+                        return;
+                    }
+                    result.put("body", parseJson(text));
                 } else if ("arraybuffer".equals(responseType)) {
-                    result.put("body", data);
+                    // Capacitor 无法序列化 byte[]（会被 JSONObject 当作非法值静默吞掉，
+                    // 退化成 "[B@xxxx" 字符串），统一改走 base64 + __binary 标记，
+                    // 由渲染端桥引导脚本解码回 ArrayBuffer。
+                    result.put("body", Base64.encodeToString(data, Base64.NO_WRAP));
+                    result.put("__binary", true);
                 } else {
                     result.put("body", new String(data, StandardCharsets.UTF_8));
                 }
@@ -137,8 +160,16 @@ public class ContextModulesPlugin extends Plugin {
                 final JSObject res = result;
                 getActivity().runOnUiThread(() -> call.resolve(res));
             } catch (Exception e) {
-                // 复刻 httpClient.ts：出错返回空对象 {}
-                getActivity().runOnUiThread(() -> call.resolve(new JSObject()));
+                // 复刻 httpClient.ts：出错返回空对象 {}。
+                // 日志必须保留：否则安卓端数据层故障会完全静默（桌面端至少能在终端看到 undici 堆栈）。
+                Log.e(TAG, "request failed: " + url, e);
+                // 额外打一个 __failed 标记：与「真的拿到了空响应体」区分开，
+                // 供渲染端桥引导脚本判断是否需要换用 WebView 浏览器栈重试（见 index.html）。
+                // 标记对外语义不变——旧调用方读 body/headers 依旧拿到空对象。
+                final JSObject failed = new JSObject();
+                failed.put("__failed", true);
+                failed.put("__error", String.valueOf(e));
+                getActivity().runOnUiThread(() -> call.resolve(failed));
             }
         }).start();
     }
@@ -178,7 +209,25 @@ public class ContextModulesPlugin extends Plugin {
     @PluginMethod
     public void storeCover(PluginCall call) {
         String type = call.getString("type");
-        JSObject value = call.getData().getJSObject("value");
+        // 与 toJson 同一根因：结构化对象可能被 Capacitor 压成 JSON 文本传来。
+        // 若只用 getJSObject("value")，遇到字符串会拿到 null，
+        // 于是「先 clear() 再写空」——整个命名空间被静默清空（恢复备份时损失全部配置）。
+        Object raw = call.getData().opt("value");
+        // 同样要用基类 JSONObject 判断：Capacitor 经 JSObject(String) 解析出来的嵌套值是
+        // org.json.JSONObject 本体，只判 JSObject 会得到 null → clear() 后什么都没写，
+        // 整个命名空间被静默清空（恢复备份时损失全部配置）。
+        JSONObject value = null;
+        if (raw instanceof JSONObject) {
+            value = (JSONObject) raw;
+        } else if (raw instanceof String) {
+            try {
+                value = new JSObject((String) raw);
+            } catch (Exception e) {
+                Log.e(TAG, "storeCover: value 不是合法 JSON 对象，拒绝覆盖以免清空 " + type, e);
+                call.reject("invalid value for storeCover");
+                return;
+            }
+        }
         android.content.SharedPreferences.Editor ed = getContext()
             .getSharedPreferences(type, Context.MODE_PRIVATE).edit();
         ed.clear();
@@ -303,8 +352,10 @@ public class ContextModulesPlugin extends Plugin {
                 StringBuilder sb = new StringBuilder();
                 if (json != null && json.length() > 0) {
                     Object first = json.get(0);
-                    if (first instanceof JSObject) {
-                        JSObject row0 = (JSObject) first;
+                    // 用基类 JSONObject：数组元素是 org.json.JSONObject 本体，只判 JSObject
+                    // 会漏掉表头与所有数据行，导出出一个只有 BOM 的空 CSV。
+                    if (first instanceof JSONObject) {
+                        JSONObject row0 = (JSONObject) first;
                         Iterator<String> cols = row0.keys();
                         boolean firstCol = true;
                         while (cols.hasNext()) {
@@ -316,8 +367,8 @@ public class ContextModulesPlugin extends Plugin {
                     }
                     for (int i = 0; i < json.length(); i++) {
                         Object row = json.get(i);
-                        if (row instanceof JSObject) {
-                            JSObject r = (JSObject) row;
+                        if (row instanceof JSONObject) {
+                            JSONObject r = (JSONObject) row;
                             Iterator<String> cols = r.keys();
                             boolean firstCol = true;
                             while (cols.hasNext()) {
@@ -447,13 +498,45 @@ public class ContextModulesPlugin extends Plugin {
     }
 
     private static String toJson(Object o) {
-        if (o == null) return "null";
-        if (o instanceof JSObject) return ((JSObject) o).toString();
-        if (o instanceof JSArray) return ((JSArray) o).toString();
-        if (o instanceof Boolean || o instanceof Integer || o instanceof Double
-            || o instanceof Long || o instanceof Float) return o.toString();
-        if (o instanceof String) return JSONObject.quote((String) o);
+        if (o == null || o == JSONObject.NULL) return "null";
+        // ⚠️ 必须用 org.json 的基类 JSONObject / JSONArray 判断，不能只用 Capacitor 的
+        // JSObject / JSArray：JSObject(String) 解析出来的嵌套值，opt() 返回的是
+        // org.json.JSONObject / JSONArray 本体（不是 Capacitor 子类），
+        // 只判子类会漏到最后一行的兜底分支 → String.valueOf(o) 得到 JSON 文本再被 quote 一次，
+        // 形成「双重编码」：
+        //   写：存储成  "[{\"a\":1}]"（多了一层引号）
+        //   读：parseJson 剥掉外层引号 → 拿到的是 String，而不是数组/对象
+        // 实测后果：all('config') 里 WALLET_SETTING 变成字符串，而 Utils.GetCodeMap(list)
+        // 内部是 list.reduce(...)，在 String 上直接抛 TypeError → 钱包配置解析静默失效
+        // （用户新增的基金/股票重启后丢失）。基类判断可同时覆盖两种子类。
+        if (o instanceof JSONObject) return ((JSONObject) o).toString();
+        if (o instanceof JSONArray) return ((JSONArray) o).toString();
+        if (o instanceof Boolean || o instanceof Number) return o.toString();
+        if (o instanceof String) {
+            String s = (String) o;
+            // 兜底：若拿到的字符串本身已是一段合法 JSON 对象/数组文本（某些 Capacitor
+            // 调用路径会先把结构化值压成文本），按原样存储，避免再次 quote。
+            String t = s.trim();
+            if (isJsonStructure(t)) return t;
+            return JSONObject.quote(s);
+        }
         return JSONObject.quote(String.valueOf(o));
+    }
+
+    // 判断字符串本身是否是一段合法的 JSON 对象/数组文本（用于规避双重编码）
+    private static boolean isJsonStructure(String t) {
+        try {
+            if (t.startsWith("{")) {
+                new JSONObject(t);
+                return true;
+            }
+            if (t.startsWith("[")) {
+                new JSONArray(t);
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     private static String csvCell(String s) {

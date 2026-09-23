@@ -396,7 +396,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
                         <label>字体大小：</label>
                         <Slider
                           min={11}
-                          max={14}
+                          max={16}
                           style={{ flex: 0.5 }}
                           defaultValue={baseFontSize}
                           onChange={setBaseFontSize}

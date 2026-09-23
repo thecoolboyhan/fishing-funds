@@ -36,3 +36,17 @@ yarn-error.log
 # 构建
 release/app/dist
 release/build
+
+# ── 安卓发布签名（绝不入库）──
+android/keystore.properties
+*.jks
+*.keystore
+
+# ── 安卓构建产物 / Gradle 缓存 ──
+android/build
+android/app/build
+android/.gradle
+android/local.properties
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json

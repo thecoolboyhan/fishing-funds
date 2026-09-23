@@ -159,12 +159,28 @@ fishing-funds/
 - 维护化改造全部提交。
 - 依赖安装 + 构建验证通过。
 - 工作树干净。
+- **安卓端跑通并修掉 6 个桥 bug**（2026-09-23，`android-capacitor` 分支，**改动尚未提交**）：
+  二进制响应 base64 信封、`dialog.*` 安全默认值、`storeCover` 参数名、4xx 响应体丢失 + 异常日志、
+  **`electronStore` 双重编码**（`JSONObject`/`JSONArray` 基类判断）、**持久化监听器启动竞态**（初始化写入全丢）。
+- **首次启动种子自选数据**：`defaultWallet`（4 基金 + 4 股票，其中基金 `000001` 与股票 `600519` 带示意持仓）
+  仅在本地无 `WALLET_SETTING` 时生效，绝不覆盖既有配置。已实测落盘。
+- **移动端适配**：`mobile.css` 去掉裸 `@media (max-width:600px)`（曾误伤 325px 桌面小窗、把 antd Switch 撑成灰色块）；
+  `baseFontSizeSetting` 12→13，字号滑杆上限 14→16。
 
 ### 待办（多为需人类动手 / 外部操作）
 
 - [x] **GitHub 远端已发布**（2026-09-22 完成）：仓库 `https://github.com/thecoolboyhan/fishing-funds.git`（公开，默认分支 `maintain-8.7.1`），已 push 分支 + `fork-base-8.7.1` 锚点标签。**未推官方 v1~v8.8.0 标签**（避免闭源 8.8.0）。
   - ⚠️ **推送网络坑**：本机 Clash TUN 代理下 git HTTPS push 会被返回 `HTTP 408`（smart-HTTP receive-pack 被拦截），**推送前先关 Clash 或让 github 走直连**；或改用 SSH（`git@github.com:thecoolboyhan/fishing-funds.git`）。详见 `FORK_README.md`。
+- [ ] **（建议）让「已配置但暂无行情」的条目仍然显示**：`Utils.MergeStateWithResponse` 现在是
+  `if (stateItem || responseItem) map[index] = …`，即**配置项在既无缓存 state、又无行情响应时会被整行丢弃**。
+  后果：新装/行情接口挂掉时，用户刚添加的基金或股票会**整行消失**（连删除入口都没有），
+  `defaultWallet` 种子数据在网络不通时也看不见。改法：reduce 里改为无条件写入，
+  并给 fund 传 `configToState: (c) => ({ ...c, fundcode: c.code })`（股票配置本身已有 `secid`，可直接 spread）。
+  **注意**：这是四处 UI 共用的合并逻辑，改动会影响桌面端，需先确认行组件对 `dwjz/gsz` 缺失的渲染是否优雅。
 - [ ] （可选）自签名 / Apple 公证打包：当前 `npm run package-mac` 产未签名 dmg，macOS 首次运行需 `sudo xattr -d com.apple.quarantine /Applications/fishing-funds.app`。
+- [ ] **安卓端原生弹窗 + 文件选择器**：`AlertDialog` + SAF 实现 `showMessageBox` / `showSaveDialog` / `showOpenDialog`。现状是安全默认值（一律按「取消」），所以**删除自选、导出 CSV/JSON、备份导入导出在安卓端静默不执行**（不再抛错，但也没功能）。见 `ARCHITECTURE.md` §5。
+- [ ] **安卓端网页查看器**：`WebViewer` 依赖桌面 `<webview>` 与 `open-child-window`，安卓端不可用（新闻「查看原文」无反应）；应改走 `shell.openExternal` 外链或原生 WebView Activity。
+- [ ] 安卓端发布化：当前只有 debug APK（无 signingConfig）；要发布需 keystore，并考虑 `versionCode/versionName`（现为写死的 `1`/`1.0`）与品牌图标/启动图（现为 Capacitor 默认）。
 - [ ] （可选）维护工作流文档化：如何在保持 8.7.1 基线的前提下，把 upstream 的安全/数据修复 cherry-pick 进来，同时排除 8.8.0 闭源改动。
 
 ---
@@ -219,7 +235,29 @@ cd android && ./gradlew assembleDebug   # 产 app-debug.apk（需 JDK17 + ANDROI
 - ❌ **不要 `git merge upstream/main` 整个主干**（会带入 8.8.0 闭源改动）；如需上游修复，用 `git cherry-pick <commit>` 精选，并人工排除闭源部分。
 - ❌ **不要破坏 `ARCHITECTURE.md` 里的 5 条架构铁律**（多端共用一份 renderer / 差异只走 `contextModules` 桥 / 桌面假设不进 renderer / 桥契约两端同步 / 安卓壳只是壳）。改代码前先读 `ARCHITECTURE.md`。
 - ❌ **不要删除或外置 `src/renderer/index.html` 里的 inline 桥引导脚本**（它是铁律的运行时保障；Electron 端自动跳过，安卓端惰性委托 Capacitor 插件）。
-- ❌ **不要在 `src/renderer` 里直接 `fetch` 第三方 / 用 `localStorage` 作主存储 / `window.open` 外链 / `navigator.clipboard` / 读 `navigator.userAgent` 判断平台**——这些都违反铁律 2，必须用 `contextModules` 桥。
+- ❌ **不要把 `electron.dialog.*` 改回裸 `noop`**（返回 `undefined`）：渲染层 `const { filePaths } = await dialog.showOpenDialog()` 会直接抛 `TypeError`。也不要让 `showMessageBox` 默认 `response: 0`——`0` 是「确定」，会让「删除自选 / 恢复备份」被静默执行。默认必须 `response: 1`（取消）。
+- ❌ **二进制响应（`responseType:'arraybuffer'`）不要直接 `result.put("body", byte[])`**：Capacitor 的 `JSObject.put` 会静默吞掉非法值，渲染端只拿到 `"[B@xxxx"` 字符串。必须走 `base64 + __binary` 信封（见 `ARCHITECTURE.md` §3），并在 inline 桥引导脚本里解码回 `ArrayBuffer`。
+- ❌ **不要删掉安卓 `request` 的 catch 里那行 `Log.e(TAG, "request failed: " + url, e)`**：桌面端有 undici 堆栈，安卓端没了这行日志，数据层故障会 100% 静默（这次就是靠它定位到 `unexpected end of stream` 的）。
+- ❌ **数据为空时不要先怀疑桥**：`push2.eastmoney.com/api/qt/*` 这类接口在代理出口下会被服务端掐连接（安卓 `unexpected end of stream` / 桌面 undici `other side closed`，两端一致）。先用 ARCHITECTURE.md §5 的对照法确认是否环境问题。
+- ❌ **`ContextModulesPlugin` 里判断 JSON 结构必须用 `org.json` 基类 `JSONObject` / `JSONArray`，不要用 Capacitor 的 `JSObject` / `JSArray`**：`JSObject(String)` 解析出的嵌套值本体是 `org.json` 类型，只判子类会漏到 `String.valueOf` 兜底分支 → 双重编码（写 `"[{...}]"`、读回 `String`）→ `GetCodeMap(list)` 在 String 上 `reduce` 抛 `TypeError` → **钱包配置静默失效**。`toJson` / `storeCover` / `saveJsonToCsv` 三处都踩过，见 `ARCHITECTURE.md` §5「`electronStore` 的类型契约」。
+- ❌ **不要在没有 `startListening()` 的情况下 dispatch 持久化 action**：`config/state.listener` 未注册时写入被静默丢弃。已改由 `InitPage.init()` 第一行提前注册（`startListening` 幂等）。新增任何「启动早期写配置」的逻辑前先确认监听器已就绪。
+- ❌ **不要在 `mobile.css` 里写裸媒体查询（如 `@media (max-width:600px) { button {…} }`）**：桌面菜单栏小窗只有 325px 宽，裸媒体查询会连桌面端一起命中 —— 本次就是把 antd Switch 撑成灰色块的真凶。所有移动端规则一律挂在 `.platform-android` 下，且放大点击热区时必须 `:not(.ant-switch)` 排除开关类组件。
+- ❌ **不要把 `mobile.css` 写成「给所有 button / a 加 min-height」**：本应用布局是紧凑型、容器高度写死
+  （`SortBar` 的 `.content` 固定 `height:32px`），给子元素强加高度会让它比容器更高、**向上溢出**——
+  表现为「管理 / 榜单 / 自定义」文字位置偏上（真踩过）。`mobile.css` 只做视口级适配，绝不碰组件尺寸；
+  要放大点击热区请逐个组件做并同步调容器高度。
+- ❌ **不要只保留安卓桥的单条网络栈**：`src/renderer/index.html` 的「原生优先 + `__failed` 时用
+  WebView `fetch` 重试」是**必须**的（两栈能力互补，缺一会丢一半数据）。同时 `ContextModulesPlugin`
+  的 catch 必须 resolve `{__failed:true, __error:…}`，否则渲染端无法区分「传输失败」与「空响应」。
+  详见 `ARCHITECTURE.md` §3.5。
+- ❌ **不要为了「列表不留空」把 `Utils.MergeStateWithResponse` 改成无条件保留配置项**：下游
+  `CalcFund` / `CalcStock` 会拿到没有 `dwjz`/`gsz` 的项，`NP.minus(undefined, …)` 直接抛
+  `TypeError` → 整个列表白屏（实测过）。要改必须同时给这两个 Calc 加缺值保护，并想清楚「无行情行」
+  显示什么（显示 `0.00` 比不显示更糟）。
+- ❌ **不要在 `src/renderer` 的组件 / services 里直接 `fetch` 第三方 / 用 `localStorage` 作主存储 /
+  `window.open` 外链 / `navigator.clipboard` / 读 `navigator.userAgent` 判断平台**——违反铁律 2，必须走
+  `contextModules` 桥。（唯一例外：`index.html` 的 inline 桥**自身**实现里可以用 `fetch`，
+  因为那正是「平台差异层」，安卓的浏览器栈重试就靠它。）
 
 ### 数据源失效时的第一动作
 
@@ -228,6 +266,16 @@ cd android && ./gradlew assembleDebug   # 产 app-debug.apk（需 JDK17 + ANDROI
 3. 在 service 内修请求参数/解析逻辑；必要时加 `src/main/proxy.ts` 已支持的代理或 UA 伪装。
 4. `npm run build` 验证，再提交。
 
+> **先分清是哪一层失效**（2026-09-23 的血泪分工）：
+> · 只有安卓 native 栈挂、同一 URL 在 WebView `fetch` 能通 → **桥的传输问题**，见 `ARCHITECTURE.md` §3.5。
+> · 两条栈 + 桌面 undici 全挂 → **出口 IP 被服务端拦**，改代码没用，换网络/节点，或换数据源。
+> · 只有基金为空、且 `fundgz` 返回 `200 + HTML` → 默认基金源被 CDN 拦，**切「设置 → 基金接口」到同花顺**，
+>   见 `ARCHITECTURE.md` §3.5 的基金源对照表。
+
 ---
 
-_最后更新：2026-09-22（fork 创建 + 维护化改造完成；android-capacitor 分支落地 Capacitor 双壳方案，新增 `ARCHITECTURE.md` 固化架构铁律）。_
+_最后更新：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
+catch 回 `__failed` + `index.html` inline 桥 `webviewFetch`），修复股票/指数行情、分时、K线与详情页全空；
+`mobile.css` 去掉给所有 button/a 的 min-height（它把固定 32px 的 SortBar 撑溢出，导致「管理」等文字偏上）。
+改动集中在 `ContextModulesPlugin.java`、`src/renderer/index.html`、`public/mobile.css`、`utils/index.ts`（仅加注释），
+**均未提交**。基金默认源 `fundgz` 被 CDN 拦已定性为环境问题，切「基金接口 → 同花顺」即恢复。）_

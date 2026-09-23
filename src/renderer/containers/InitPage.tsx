@@ -24,6 +24,7 @@ import { syncVersion } from '@/store/features/updater';
 import { syncTranslateSettingAction, defaultTranslateSetting } from '@/store/features/translate';
 import { useDrawer, useAppDispatch } from '@/utils/hooks';
 import { syncFavoriteQuotationMapAction } from '@/store/features/quotation';
+import { startListening } from '@/store/listeners';
 import * as CONST from '@/constants';
 import * as Utils from '@/utils';
 import * as Enums from '@/utils/enums';
@@ -77,6 +78,16 @@ const InitPage = () => {
   const { data: loadingText, show: showLoading, set: setLoading } = useDrawer('加载本地配置中...');
 
   async function init() {
+    /**
+     * 必须先注册持久化监听器，再做任何 dispatch。
+     * 原实现只在 HomePage / DetailPage mount 时才调用 startListening()，
+     * 而 InitPage 的 init() 在它们之前就 dispatch 了全部配置，导致
+     * 「初始化阶段的 config / state 写入全部丢失」——首次启动时
+     * WALLET_SETTING / SYSTEM_SETTING / CURRENT_WALLET_CODE 等永远不落盘
+     * （cache 因为要等网络回来才写，所以反而是正常的）。
+     * startListening() 已做幂等保护，这里提前调用不影响后续页面重复调用。
+     */
+    startListening();
     setLoading('加载中...');
     /**
      * config部分

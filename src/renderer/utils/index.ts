@@ -447,6 +447,12 @@ export function MergeStateWithResponse<C, CK extends keyof C, SK extends keyof S
     const index = current[params.configKey] as unknown as string;
     const stateItem = stateCodeToMap[index];
     const responseItem = responseCodeToMap[index];
+    // ⚠️ 这里刻意保持上游原语义：**只保留「已有缓存 state」或「本次拿到行情」的配置项**。
+    // 曾试过「无条件保留配置项」（这样行情不可用时列表也能显示已配置的自选），但下游
+    // CalcFund / CalcStock 会拿到没有 dwjz/gsz 的项，NP.minus(undefined, …) 直接抛
+    // TypeError → 整个列表白屏（实测）。要改成无条件保留，必须同时给
+    // Helpers.Fund.CalcFund / Helpers.Stock.CalcStock 加缺值保护，并想清楚「无行情行」
+    // 该显示什么（显示 0.00 比不显示更糟）。属独立改动，勿顺手改这里。
     if (stateItem || responseItem) {
       map[index] = { ...(stateItem || {}), ...(responseItem || {}) };
     }

@@ -30,7 +30,7 @@ export const defaultSystemSetting: System.Setting = {
   lowKeySetting: false,
   lowKeyDegreeSetting: 80,
   opacitySetting: 1,
-  baseFontSizeSetting: 12,
+  baseFontSizeSetting: 13, // 全局基准字号（整个 UI 以此为比例基准）；原默认 12，调大以便在手机/小窗上看得清
   systemThemeSetting: Enums.SystemThemeType.Auto,
 
   bottomTabsSetting: [
