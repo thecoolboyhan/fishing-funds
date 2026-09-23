@@ -329,7 +329,44 @@ shasum -a 256 /tmp/t.apk
 
 ---
 
-_最后更新：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
+### 仓库分支拓扑与「默认分支快照」维护（2026-09-23 起）
+
+本仓库默认分支是 **`main`**，它是**单提交快照**（无父提交）。这样做是为了让仓库主页的
+Contributors 面板只显示本仓库维护者 —— GitHub 的贡献者统计**只算默认分支上的提交**
+（官方文档：commits on non-default branches 不计入 contributors graph），
+所以只要默认分支的历史里没有上游提交，面板就不会出现上游贡献者。
+历史改动后统计刷新生效**可能要约 24 小时**（期间 `/graphs/contributors-data` 返回 202 或
+`{"unusable":true}`）。
+
+| 分支 | 用途 |
+|---|---|
+| `main` | **默认分支**。当前代码树的单提交快照，只用于展示与下载，**无有效历史** |
+| `android-capacitor` | 安卓（Capacitor 6）开发线，**含上游完整历史**，日常提交打这里 |
+| `maintain-8.7.1` | 桌面端维护线，含上游完整历史 |
+| `upstream/main` | 官方主干（V8.8.0），只读参考，不合并 |
+
+**发布 / 改完代码后要同步快照**，否则主页展示的 `main` 会落后于实际代码：
+
+```bash
+TREE=$(git rev-parse android-capacitor^{tree})
+C=$(git commit-tree "$TREE" -F <提交信息文件>)     # 单提交，无父提交
+REF=refs/heads/main
+git push --force origin "$C:$REF"                 # 快照分支无有效历史，force 覆盖即可
+```
+
+⚠️ **不要用 `git checkout --orphan main`** —— 本地 `main` 已被用来跟踪 `upstream/main`（V8.8.0）。
+用 plumbing（`git commit-tree` + 直接 push refspec）可以**完全不碰任何本地分支**。
+
+⚠️ zsh 坑：`git push origin "$C:refs/heads/main"` 里的 `:r` 会被 zsh 当成参数修饰符吃掉
+（报 `src refspec …efs/heads/main does not match any`）。把 refspec 拆到变量里再拼，或写成
+`"$C:$REF"`。
+
+---
+
+_最后更新：2026-09-23（新增默认分支 `main` 单提交快照，使仓库主页 Contributors 只显示维护者；
+其余分支保留上游完整历史。原「安卓联调第三轮」内容见下。）_
+
+_历史：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
 catch 回 `__failed` + `index.html` inline 桥 `webviewFetch`），修复股票/指数行情、分时、K线与详情页全空；
 `mobile.css` 去掉给所有 button/a 的 min-height（它把固定 32px 的 SortBar 撑溢出，导致「管理」等文字偏上）。
 **已提交并发布 v8.7.1-fork.1**（`9727716`，release 资产 `fishing-funds-android-8.7.1-fork.1.apk`）。
