@@ -255,7 +255,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
             },
             'card-body'
           )}
-          onClick={() => isUpdateAvaliable && onNavigate('https://ff.1zilc.top/#download')}
+          onClick={() => isUpdateAvaliable && onNavigate('https://github.com/thecoolboyhan/fishing-funds/releases')}
         >
           <Logo />
           <Badge count={isUpdateAvaliable ? `v${updateInfo.version} 可更新` : 0} style={{ fontSize: 8 }} size="small">

@@ -1,9 +1,9 @@
 declare namespace Backup {
   export interface Config {
     name: string;
-    author: '1zilc';
-    website: 'https://ff.1zilc.top';
-    github: 'https://github.com/1zilc/fishing-funds';
+    author: 'thecoolboyhan';
+    website: 'https://thecoolboyhan.github.io/p/fishing-funds/';
+    github: 'https://github.com/thecoolboyhan/fishing-funds';
     version: string;
     content: string;
     timestamp: number;

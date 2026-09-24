@@ -25,8 +25,11 @@ const LoadingScreen: React.FC<LoadingScreenProps> = (props) => {
           <div style={{ width: 240 }}></div>
         </Spin>
       </div>
-      <a className={styles.link} onClick={() => shell.openExternal('https://ff.1zilc.top')}>
-        ff.1zilc.top
+      <a
+        className={styles.link}
+        onClick={() => shell.openExternal('https://thecoolboyhan.github.io/p/fishing-funds/')}
+      >
+        thecoolboyhan.github.io/p/fishing-funds
       </a>
     </div>
   );

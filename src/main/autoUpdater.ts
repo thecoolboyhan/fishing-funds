@@ -72,7 +72,7 @@ export default class AppUpdater {
             .then(({ response }) => {
               if (response === 0) {
                 console.info('下载更新');
-                shell.openExternal('https://ff.1zilc.top#download');
+                shell.openExternal('https://github.com/thecoolboyhan/fishing-funds/releases');
               } else {
                 console.info('取消更新');
               }

@@ -17,9 +17,9 @@ export async function GenerateBackupConfig() {
   const config = await electronStore.all('config');
   const fileConfig: Backup.Config = {
     name: 'Fishing-Funds-Backup',
-    author: '1zilc',
-    website: 'https://ff.1zilc.top',
-    github: 'https://github.com/1zilc/fishing-funds',
+    author: 'thecoolboyhan',
+    website: 'https://thecoolboyhan.github.io/p/fishing-funds/',
+    github: 'https://github.com/thecoolboyhan/fishing-funds',
     version: await app.getVersion(),
     content: await encodeFF(config),
     timestamp: Date.now(),
@@ -31,9 +31,9 @@ export async function GenerateBackupConfig() {
 export async function GenerateSyncConfig(config: { [x: string]: any }) {
   const fileConfig: Backup.Config = {
     name: 'Fishing-Funds-Sync',
-    author: '1zilc',
-    website: 'https://ff.1zilc.top',
-    github: 'https://github.com/1zilc/fishing-funds',
+    author: 'thecoolboyhan',
+    website: 'https://thecoolboyhan.github.io/p/fishing-funds/',
+    github: 'https://github.com/thecoolboyhan/fishing-funds',
     version: await app.getVersion(),
     content: await encodeFF(config),
     timestamp: Date.now(),

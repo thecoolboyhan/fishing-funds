@@ -10,33 +10,33 @@ import styles from '../index.module.css';
 
 interface MoreProps {}
 
-const { shell, clipboard, dialog } = window.contextModules.electron;
+const { shell } = window.contextModules.electron;
 const process = window.contextModules.process;
 
 const linksGroup = Utils.Group(
   [
     {
-      url: 'mailto:dywzzjx@163.com',
+      url: 'https://github.com/thecoolboyhan',
       name: '联系作者',
     },
     {
-      url: 'https://ff.1zilc.top',
+      url: 'https://thecoolboyhan.github.io/p/fishing-funds/',
       name: '官方网站',
     },
     {
-      url: 'https://ff.1zilc.top/blog',
+      url: 'https://github.com/thecoolboyhan/fishing-funds/releases',
       name: '更新日志',
     },
     {
-      url: 'https://github.com/1zilc/fishing-funds',
+      url: 'https://github.com/thecoolboyhan/fishing-funds',
       name: 'Github',
     },
     {
-      url: 'https://github.com/1zilc/fishing-funds/issues/new?assignees=&labels=&template=issue_template_bug.md',
+      url: 'https://github.com/thecoolboyhan/fishing-funds/issues',
       name: 'BUG反馈',
     },
     {
-      url: 'https://github.com/1zilc/fishing-funds/issues/new?assignees=&labels=&template=issue_template_feature.md',
+      url: 'https://github.com/thecoolboyhan/fishing-funds/issues',
       name: '提出建议',
     },
   ],
@@ -46,43 +46,18 @@ const linksGroup = Utils.Group(
 const recordSiteGroup = Utils.Group(
   [
     {
-      url: 'https://lemon.qq.com/lab/app/FishingFunds.html',
-      name: '柠檬精选',
+      url: 'https://github.com/thecoolboyhan/fishing-funds/releases',
+      name: 'GitHub Releases',
     },
     {
-      url: 'https://www.electronjs.org/apps/fishing-funds',
-      name: 'Electron Apps',
-    },
-    {
-      url: 'https://www.macwk.com/soft/fishing-funds',
-      name: 'MacWk',
-    },
-    {
-      url: 'https://formulae.brew.sh/cask/fishing-funds#default',
-      name: 'Homebrew',
-    },
-    {
-      url: 'https://github.com/jaywcjlove/awesome-mac',
-      name: 'Awesome Mac',
-    },
-    {
-      url: 'https://github.com/microsoft/winget-pkgs',
-      name: 'WinGet',
+      url: 'https://thecoolboyhan.github.io/p/fishing-funds/',
+      name: '官方网站',
     },
   ],
   3
 );
 
 const More: React.FC<MoreProps> = () => {
-  function onCopyGroup(number: string) {
-    clipboard.writeText(number);
-    dialog.showMessageBox({
-      title: '复制成功',
-      type: 'info',
-      message: `已复制到粘贴板`,
-    });
-  }
-
   function onNavigate(url: string) {
     shell.openExternal(url);
   }
@@ -120,12 +95,8 @@ const More: React.FC<MoreProps> = () => {
       <StandCard icon={<RiGroupLine />} title="讨论交流">
         <div className={clsx(styles.group, 'card-body')}>
           <section>
-            <label>QQ群：</label>
-            <a onClick={() => onCopyGroup('732268738')}>732268738</a>
-          </section>
-          <section>
             <label>issues：</label>
-            <a onClick={() => onNavigate('https://github.com/1zilc/fishing-funds/issues/106')}>#106</a>
+            <a onClick={() => onNavigate('https://github.com/thecoolboyhan/fishing-funds/issues')}>问题反馈</a>
           </section>
         </div>
       </StandCard>
