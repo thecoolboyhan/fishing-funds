@@ -13,7 +13,7 @@
 
 > 股票 · 基金 · 大盘指数 · 板块 · 加密货币 的**行情常驻工具**。
 > 桌面端（macOS / Windows / Linux）基于 Electron 常驻菜单栏；
-> **自 v8.7.1-fork.1 起新增安卓客户端**（Capacitor 6 原生壳），四端共用同一份渲染层代码。
+> **安卓客户端自 v0.1.0 起提供**（Capacitor 6 原生壳），四端共用同一份渲染层代码。
 
 ## 截图
 
@@ -36,7 +36,7 @@
 - 官方自动更新已关闭，构建产物只来自本仓库代码。
 - 完整的架构契约与维护手册见 [`ARCHITECTURE.md`](ARCHITECTURE.md) / [`AGENTS.md`](AGENTS.md)，人类操作手册见 [`FORK_README.md`](FORK_README.md)。
 
-## 本次新增：安卓客户端
+## 安卓客户端
 
 `android-capacitor` 分支把同一份 `src/renderer` 装进了 Capacitor 6 壳，与桌面三端共用全部业务代码，
 平台差异只通过 `window.contextModules` 桥隔离（安卓侧由原生插件 [`ContextModulesPlugin.java`](android/app/src/main/java/com/thecoolboyhan/fishingfunds/plugins/ContextModulesPlugin.java) 实现）。
