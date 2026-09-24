@@ -1,0 +1,34 @@
+.content {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 50px);
+  justify-content: space-around;
+}
+
+.wallet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  height: 50px;
+  width: 50px;
+  box-sizing: border-box;
+
+  cursor: pointer;
+  border-radius: 50%;
+
+  img {
+    transition: transform 0.2s;
+  }
+
+  &:hover {
+    img {
+      transform: scale(1.2);
+    }
+  }
+}
+
+.selected {
+  img {
+    transform: scale(1.2);
+  }
+}

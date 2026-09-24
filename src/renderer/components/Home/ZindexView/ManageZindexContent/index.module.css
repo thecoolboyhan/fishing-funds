@@ -1,0 +1,48 @@
+.content {
+  position: relative;
+  box-sizing: border-box;
+  padding: var(--base-padding);
+}
+
+.row {
+  padding: var(--base-padding);
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+
+  svg {
+    fill: var(--svg-icon-color);
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
+}
+
+.dragItem {
+  background-color: var(--inner-color) !important;
+}
+.markets {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.market {
+  flex: 1;
+  padding: var(--base-padding);
+  box-sizing: border-box;
+  margin-bottom: 10px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &:nth-child(odd) {
+    margin-right: 10px;
+  }
+}
+.disappear {
+  display: none;
+}

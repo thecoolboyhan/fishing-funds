@@ -1,0 +1,10 @@
+.content {
+  padding: var(--base-padding);
+
+  label {
+    font-size: var(--base-font-size);
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 600;
+  }
+}

@@ -1,0 +1,4 @@
+.content {
+  display: block;
+  padding: var(--base-padding);
+}

@@ -1,0 +1,35 @@
+.content {
+  border-radius: var(--base-radius);
+  background-color: var(--background-color);
+  box-sizing: border-box;
+  margin-bottom: var(--base-padding);
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+.autoSize {
+  min-height: auto;
+}
+.toolbar {
+  display: flex;
+  padding: var(--base-padding);
+  justify-content: flex-end;
+  align-items: center;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    margin-left: var(--base-padding);
+    cursor: pointer;
+    fill: var(--main-text-color);
+  }
+}
+.body {
+  padding: 0 var(--base-padding) var(--base-padding);
+}
+.pure {
+  padding: 0;
+}
+.describe {
+  color: #fff;
+}

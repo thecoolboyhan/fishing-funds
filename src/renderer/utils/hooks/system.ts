@@ -1,0 +1,828 @@
+import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { useInterval, useRequest } from 'ahooks';
+import { theme } from 'antd';
+import { UnknownAction } from 'redux';
+import dayjs from 'dayjs';
+import NP from 'number-precision';
+import * as StringSimilarity from '@nivalis/string-similarity';
+import { startListening } from '@/store/listeners';
+import { updateAvaliableAction } from '@/store/features/updater';
+import { setFundConfigAction } from '@/store/features/fund';
+import { syncTabsActiveKeyAction } from '@/store/features/tabs';
+import { changeCurrentWalletCodeAction, toggleEyeStatusAction } from '@/store/features/wallet';
+import {
+  updateAdjustmentNotificationDateAction,
+  syncDarkMode,
+  saveSyncConfigAction,
+  syncVaribleColors,
+} from '@/store/features/setting';
+import { syncTranslateShowAction } from '@/store/features/translate';
+import {
+  useWorkDayTimeToDo,
+  useFixTimeToDo,
+  useAfterMountedEffect,
+  useAppDispatch,
+  useAppSelector,
+  useLoadCoins,
+  useLoadRemoteCoins,
+  useLoadRemoteFunds,
+  useLoadFundRatingMap,
+  useLoadWalletsFunds,
+  useLoadWalletsStocks,
+  useLoadFixWalletsFunds,
+  useLoadQuotations,
+  useLoadZindexs,
+  useIpcRendererListener,
+  useOpenAI,
+} from '@/utils/hooks';
+import { walletIcons } from '@/helpers/wallet';
+import { encryptFF, decryptFF } from '@/utils/coding';
+import { useLoadFunds } from './utils';
+import * as Utils from '@/utils';
+import * as Adapters from '@/utils/adpters';
+import * as Helpers from '@/helpers';
+import * as Enums from '@/utils/enums';
+import * as Enhancement from '@/utils/enhancement';
+import * as Services from '@/services';
+import { FundConfigItem } from '@/components/Toolbar/FundsImportContent';
+
+const { dialog, ipcRenderer, clipboard, app } = window.contextModules.electron;
+const { production } = window.contextModules.process;
+const { saveString, readStringFile, readFile } = window.contextModules.io;
+const { useToken } = theme;
+
+export function useUpdater() {
+  const dispatch = useAppDispatch();
+  const { autoCheckUpdateSetting } = useAppSelector((state) => state.setting.systemSetting);
+  // 2小时检查一次版本
+  useInterval(() => autoCheckUpdateSetting && ipcRenderer.invoke('check-update'), 1000 * 60 * 60 * 2, {
+    immediate: true,
+  });
+
+  useIpcRendererListener('update-available', (e, data) => {
+    if (autoCheckUpdateSetting) {
+      dispatch(updateAvaliableAction(data));
+    }
+  });
+}
+
+export function useAdjustmentNotification() {
+  const dispatch = useAppDispatch();
+  const { adjustmentNotificationSetting, adjustmentNotificationTimeSetting, timestampSetting } = useAppSelector(
+    (state) => state.setting.systemSetting
+  );
+  const lastNotificationDate = useAppSelector((state) => state.setting.adjustmentNotificationDate);
+
+  useInterval(
+    async () => {
+      if (!adjustmentNotificationSetting) {
+        return;
+      }
+      const timestamp = await Helpers.Time.GetCurrentHours(timestampSetting);
+      const { isAdjustmentNotificationTime, now } = Utils.JudgeAdjustmentNotificationTime(
+        Number(timestamp),
+        adjustmentNotificationTimeSetting
+      );
+      const month = now.get('month');
+      const date = now.get('date');
+      const hour = now.get('hour');
+      const minute = now.get('minute');
+      const currentDate = `${month}-${date}`;
+      if (isAdjustmentNotificationTime && currentDate !== lastNotificationDate) {
+        const notification = new Notification('调仓提醒', {
+          body: `当前时间${hour}:${minute} 注意行情走势`,
+        });
+        notification.onclick = () => {
+          ipcRenderer.invoke('show-current-window');
+        };
+        dispatch(updateAdjustmentNotificationDateAction(currentDate));
+      }
+    },
+    1000 * 50,
+    {
+      immediate: true,
+    }
+  );
+}
+
+export function useRiskNotification() {
+  const noticeMapRef = useRef<Record<string, boolean>>({});
+
+  const riskNotificationSetting = useAppSelector((state) => state.setting.systemSetting.riskNotificationSetting);
+  const wallets = useAppSelector((state) => state.wallet.wallets);
+  const walletsConfig = useAppSelector((state) => state.wallet.config.walletConfig);
+  const zindexs = useAppSelector((state) => state.zindex.zindexs);
+  const zindexsCodeMap = useAppSelector((state) => state.zindex.config.codeMap);
+
+  useInterval(
+    () => {
+      if (!riskNotificationSetting) {
+        return;
+      }
+      try {
+        // 基金提醒
+        wallets.forEach((wallet) => {
+          const { codeMap } = Helpers.Fund.GetFundConfig(wallet.code, walletsConfig);
+          const walletConfig = Helpers.Wallet.GetCurrentWalletConfig(wallet.code, walletsConfig);
+
+          wallet.funds?.forEach((fund) => {
+            // 涨跌范围提醒
+            checkZdfRange({
+              zdf: fund.gszzl,
+              preset: codeMap[fund.fundcode!]?.zdfRange,
+              key: `${wallet.code}-${fund.fundcode}-zdfRange`,
+              content: `${walletConfig.name} ${fund.name} ${Utils.Yang(fund.gszzl)}%`,
+            });
+            // 净值提醒
+            checkJzNotice({
+              dwjz: fund.dwjz,
+              gsz: fund.gsz,
+              preset: codeMap[fund.fundcode!]?.jzNotice,
+              key: `${wallet.code}-${fund.fundcode}-jzNotice`,
+              content: `${walletConfig.name} ${fund.name} ${fund.gsz}`,
+            });
+          });
+        });
+        // 股票提醒
+
+        wallets.forEach((wallet) => {
+          const { codeMap } = Helpers.Stock.GetStockConfig(wallet.code, walletsConfig);
+          const walletConfig = Helpers.Wallet.GetCurrentWalletConfig(wallet.code, walletsConfig);
+
+          wallet.stocks.forEach((stock) => {
+            // 涨跌范围提醒
+            checkZdfRange({
+              zdf: stock.zdf,
+              preset: codeMap[stock.secid!]?.zdfRange,
+              key: `${stock.secid}-zdfRange`,
+              content: `${walletConfig.name} ${stock.name} ${Utils.Yang(stock.zdf)}%`,
+            });
+            // 净值提醒
+            checkJzNotice({
+              dwjz: stock.zs,
+              gsz: stock.zx,
+              preset: codeMap[stock.secid!]?.jzNotice,
+              key: `${stock.secid}-jzNotice`,
+              content: `${walletConfig.name} ${stock.name} ${stock.zx}`,
+            });
+          });
+        });
+
+        // 指数提醒
+        zindexs.forEach((zindex) => {
+          // 涨跌范围提醒
+          checkZdfRange({
+            zdf: zindex.zdf,
+            preset: zindexsCodeMap[zindex.code!]?.zdfRange,
+            key: `${zindex.code}-zdfRange`,
+            content: `${zindex.name} ${Utils.Yang(zindex.zdf)}%`,
+          });
+          // 净值提醒
+          checkJzNotice({
+            dwjz: zindex.zs,
+            gsz: zindex.zsz,
+            preset: zindexsCodeMap[zindex.code!]?.jzNotice,
+            key: `${zindex.code}-jzNotice`,
+            content: `${zindex.name} ${zindex.zsz}`,
+          });
+        });
+      } catch (error) {}
+    },
+    1000 * 60,
+    {
+      immediate: true,
+    }
+  );
+
+  // 24小时清除一次
+  useInterval(() => {
+    noticeMapRef.current = {};
+  }, 1000 * 60 * 60 * 24);
+
+  function checkZdfRange(data: { zdf: any; preset: any; key: string; content: string }) {
+    const { zdf, preset, key, content } = data;
+    const noticed = noticeMapRef.current[key];
+
+    if (!noticed && preset && Math.abs(preset) < Math.abs(Number(zdf))) {
+      const notification = new Notification('涨跌提醒', {
+        body: content,
+      });
+      notification.onclick = () => {
+        ipcRenderer.invoke('show-current-window');
+      };
+      noticeMapRef.current[key] = true;
+    }
+  }
+
+  function checkJzNotice(data: { dwjz: any; gsz: any; preset: any; key: string; content: string }) {
+    const { dwjz, gsz, preset, key, content } = data;
+    const noticed = noticeMapRef.current[key];
+    if (
+      !noticed &&
+      !!Number(gsz) &&
+      preset &&
+      ((Number(dwjz) <= preset && Number(gsz) >= preset) || (Number(dwjz) >= preset && Number(gsz) <= preset))
+    ) {
+      const notification = new Notification('净值提醒', {
+        body: content,
+      });
+      notification.onclick = () => {
+        ipcRenderer.invoke('show-current-window');
+      };
+      noticeMapRef.current[key] = true;
+    }
+  }
+}
+
+export function useClipboardCopyFunds() {
+  const fundConfig = useAppSelector((state) => state.wallet.fundConfig);
+
+  useIpcRendererListener('clipboard-funds-copy', async (e: Electron.IpcRendererEvent, data) => {
+    try {
+      clipboard.writeText(JSON.stringify(fundConfig));
+      dialog.showMessageBox({
+        title: `复制成功`,
+        type: 'info',
+        message: `已复制${fundConfig.length}支基金配置到粘贴板`,
+      });
+    } catch (error) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: `复制失败`,
+        message: `基金JSON复制失败`,
+      });
+    }
+  });
+}
+
+export function useAIImportFunds() {
+  const openai = useOpenAI();
+  const openaiBaseModelSetting = useAppSelector((state) => state.setting.systemSetting.openaiBaseModelSetting);
+  const openaiImportFundsModelSetting = useAppSelector((state) => state.setting.systemSetting.openaiImportFundsModelSetting);
+  const currentWallet = useAppSelector((state) => state.wallet.currentWallet);
+  const [funds, setFunds] = useState<FundConfigItem[]>([]);
+
+  const { runAsync: aiParseFunds, loading } = useRequest(
+    async (img: string) => {
+      const fundConfigs: FundConfigItem[] = [];
+      const response = await openai.chat({
+        model: openaiImportFundsModelSetting || openaiBaseModelSetting,
+        temperature: 0.1,
+        messages: [
+          {
+            role: 'system',
+            content: `你是ocr程序，需要将支付宝基金界面的数据导出为json格式，
+请按照下面的结构直接返回严谨的json数组：
+interface Fund {
+  name: string; // 名称
+  zje: number; // 总金额
+  rsy: number; // 日收益
+  cysy: number; // 持有收益
+  cysyRate: number; // 持有收益率（百分比转换为小数，保留四位小数，例如12.03%->0.1203）
+  ljsy: number; // 累计收益
+}
+`,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: img,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      try {
+        const jsonString = response.match(/\[.*\]/gs)?.[0];
+        const json = JSON.parse(jsonString!.replace(/(?<=\d),(?=\d)/g, '')) as unknown as {
+          name: string; // 名称
+          zje: number; // 总金额
+          rsy: number; // 日收益
+          cysy: number; // 持有收益
+          cysyRate: number; // 持有收益率
+          ljsy: number; // 累计收益
+        }[];
+
+        // setFunds(json);
+
+        /***
+         * zje / dwjz = 持有份额
+         * zje - cysy = 持仓成本总金额
+         * 持仓成本总金额 / 持有份额 = cbj
+         * */
+        for (const item of json) {
+          const localFund = currentWallet.funds.find(
+            (fundConfig) => StringSimilarity.compareTwoStrings(item.name, fundConfig.name!) > 0.8
+          );
+          // 如果钱包内包含该基金，则使用当前本地的数据
+          if (localFund) {
+            const cyfe = item.zje / Number(localFund.dwjz);
+            const cbje = item.zje - item.cysy;
+            const cbj = cbje / cyfe;
+            try {
+              fundConfigs.push({
+                name: item.name!,
+                code: localFund.fundcode!,
+                cyfe,
+                cbj,
+              });
+            } catch {}
+          } else {
+            const remoteFund = await Services.Fund.GetFundInfoByNameFromEaseMoney(item.name);
+            await Utils.Sleep(300); // 300毫秒减少请求压力
+            if (remoteFund) {
+              try {
+                const cyfe = item.zje / remoteFund.dwjz;
+                const cbje = item.zje - item.cysy;
+                const cbj = cbje / cyfe;
+                fundConfigs.push({
+                  name: item.name!,
+                  code: remoteFund.code!,
+                  cyfe,
+                  cbj,
+                });
+              } catch {}
+            }
+          }
+        }
+
+        setFunds(fundConfigs);
+
+        return true;
+      } catch (e) {
+        dialog.showMessageBox({
+          type: 'info',
+          title: `解析失败`,
+          message: `当前ai无法返回正确的配置，请更换模型或重试` + e,
+        });
+        return false;
+      }
+    },
+    {
+      manual: true,
+      throttleWait: 3000,
+      throttleLeading: true,
+    }
+  );
+
+  return { aiParseFunds, loading, funds, setFunds };
+}
+
+export function useBootStrap() {
+  const { freshDelaySetting, autoFreshSetting } = useAppSelector((state) => state.setting.systemSetting);
+  const runLoadRemoteFunds = useLoadRemoteFunds();
+  const runLoadFundRatingMap = useLoadFundRatingMap();
+  const runLoadRemoteCoins = useLoadRemoteCoins();
+  const runLoadWalletsFunds = useLoadWalletsFunds();
+  const runLoadFixWalletsFunds = useLoadFixWalletsFunds();
+  const runLoadWalletsStocks = useLoadWalletsStocks();
+  const runLoadZindexs = useLoadZindexs({
+    enableLoading: false,
+    autoFilter: false,
+  });
+  const runLoadQuotations = useLoadQuotations({
+    enableLoading: false,
+    autoFilter: false,
+  });
+  const runLoadCoins = useLoadCoins({
+    enableLoading: false,
+    autoFilter: false,
+  });
+
+  // 间隔时间刷新远程基金数据,远程货币数据,基金评级
+  useInterval(() => {
+    runLoadRemoteFunds();
+    runLoadRemoteCoins();
+    runLoadFundRatingMap();
+  }, 1000 * 60 * 60 * 24);
+
+  // 间隔时间刷新基金,指数，板块，钱包
+  useWorkDayTimeToDo(() => {
+    if (autoFreshSetting) {
+      Adapters.ConCurrencyAllAdapter([
+        () => Adapters.ChokeAllAdapter([runLoadWalletsFunds]),
+        () => Adapters.ChokeAllAdapter([runLoadWalletsStocks]),
+        () => Adapters.ChokeAllAdapter([runLoadZindexs, runLoadQuotations]),
+      ]);
+    }
+  }, freshDelaySetting * 1000 * 60);
+
+  // 间隔时间检查最新净值
+  useFixTimeToDo(() => {
+    if (autoFreshSetting) {
+      Adapters.ChokeAllAdapter([runLoadFixWalletsFunds]);
+    }
+  }, 1000 * 60 * 10);
+
+  // 间隔时间刷新货币
+  useInterval(() => {
+    if (autoFreshSetting) {
+      Adapters.ChokeAllAdapter([runLoadCoins]);
+    }
+  }, freshDelaySetting * 1000 * 60);
+
+  // 第一次刷新所有数据
+  useEffect(() => {
+    Adapters.ConCurrencyAllAdapter([
+      () => Adapters.ChokeAllAdapter([runLoadRemoteFunds, runLoadRemoteCoins, runLoadFundRatingMap]),
+      () => Adapters.ChokeAllAdapter([runLoadWalletsFunds, runLoadFixWalletsFunds]),
+      () => Adapters.ChokeAllAdapter([runLoadWalletsStocks]),
+      () => Adapters.ChokeAllAdapter([runLoadZindexs, runLoadQuotations, runLoadCoins]),
+    ]);
+  }, []);
+}
+
+export function useMappingLocalToSystemSetting() {
+  const dispatch = useAppDispatch();
+  const { hashId } = useToken();
+  const {
+    systemThemeSetting,
+    autoStartSetting,
+    alwaysOnTopSetting,
+    lowKeySetting,
+    opacitySetting,
+    adjustmentNotificationTimeSetting,
+    proxyTypeSetting,
+    proxyHostSetting,
+    proxyPortSetting,
+    hotkeySetting: visibleHotkey,
+    openaiBaseURLSetting,
+    openaiApiKeySetting,
+  } = useAppSelector((state) => state.setting.systemSetting);
+  const { hotkeySetting: translateHotkey } = useAppSelector((state) => state.translate.translateSetting);
+
+  useIpcRendererListener('nativeTheme-updated', (e, data) => {
+    dispatch(syncDarkMode(!!data?.darkMode));
+  });
+
+  useEffect(() => {
+    Enhancement.UpdateSystemTheme(systemThemeSetting);
+  }, [systemThemeSetting]);
+  useEffect(() => {
+    if (production) {
+      app.setLoginItemSettings({ openAtLogin: autoStartSetting });
+    }
+  }, [autoStartSetting]);
+  useLayoutEffect(() => {
+    if (lowKeySetting) {
+      document.body.classList.add('lowKey');
+    } else {
+      document.body.classList.remove('lowKey');
+    }
+  }, [lowKeySetting]);
+  useAfterMountedEffect(() => {
+    dispatch(updateAdjustmentNotificationDateAction(''));
+  }, [adjustmentNotificationTimeSetting]);
+  useEffect(() => {
+    switch (proxyTypeSetting) {
+      case Enums.ProxyType.System:
+        ipcRenderer.invoke('set-proxy', { mode: 'system' });
+        break;
+      case Enums.ProxyType.Http:
+        ipcRenderer.invoke('set-proxy', { proxyRules: `${proxyHostSetting}:${proxyPortSetting}` });
+        break;
+      case Enums.ProxyType.Socks:
+        ipcRenderer.invoke('set-proxy', { proxyRules: `socks=${proxyHostSetting}:${proxyPortSetting}` });
+        break;
+      case Enums.ProxyType.None:
+      default:
+        ipcRenderer.invoke('set-proxy', { mode: 'direct' });
+    }
+  }, [proxyTypeSetting, proxyHostSetting, proxyPortSetting]);
+  useEffect(() => {
+    ipcRenderer.invoke('set-visible-hotkey', visibleHotkey);
+  }, [visibleHotkey]);
+  useEffect(() => {
+    dispatch(syncVaribleColors());
+  }, [hashId]);
+  useEffect(() => {
+    ipcRenderer.invoke('set-translate-hotkey', translateHotkey);
+  }, [translateHotkey]);
+
+  useEffect(() => {
+    if (lowKeySetting) {
+      ipcRenderer.invoke('set-opacity', opacitySetting);
+    } else {
+      ipcRenderer.invoke('set-opacity', 1);
+    }
+  }, [lowKeySetting, opacitySetting]);
+
+  useEffect(() => {
+    ipcRenderer.invoke('set-alwaysOnTop', alwaysOnTopSetting);
+  }, [alwaysOnTopSetting]);
+
+  useEffect(() => {
+    ipcRenderer.invoke('openai-update-config', {
+      baseURL: openaiBaseURLSetting,
+      apiKey: openaiApiKeySetting,
+    });
+  }, [openaiBaseURLSetting, openaiApiKeySetting]);
+}
+
+export function useTrayContent() {
+  const trayContentSetting = useAppSelector((state) => state.setting.systemSetting.trayContentSetting);
+  const traySimpleIncomeSetting = useAppSelector((state) => state.setting.systemSetting.traySimpleIncomeSetting);
+  const walletConfig = useAppSelector((state) => state.wallet.config.walletConfig);
+  const wallets = useAppSelector((state) => state.wallet.wallets);
+  const currentWalletCode = useAppSelector((state) => state.wallet.currentWalletCode);
+  const eyeStatus = useAppSelector((state) => state.wallet.eyeStatus);
+
+  // 当前选中钱包
+  const { sygz, gssyl } = Helpers.Wallet.CalcWallet({ code: currentWalletCode, walletConfig, wallets });
+
+  // 所有钱包
+  const allCalcResult = (() => {
+    const allResult = wallets.reduce(
+      (r, { code }) => {
+        const { zje, gszje } = Helpers.Wallet.CalcWallet({ code, walletConfig, wallets });
+
+        return {
+          zje: r.zje + zje,
+          gszje: r.gszje + gszje,
+        };
+      },
+      { zje: 0, gszje: 0 }
+    );
+    const sygz = NP.minus(allResult.gszje, allResult.zje);
+    return { sygz, gssyl: allResult.zje ? NP.times(NP.divide(sygz, allResult.zje), 100) : 0 };
+  })();
+
+  const trayContent = (() => {
+    const group = [trayContentSetting].flat();
+    let content = group
+      .map((trayContentType: Enums.TrayContent) => {
+        switch (trayContentType) {
+          case Enums.TrayContent.Sy:
+            return traySimpleIncomeSetting ? `${Utils.Yang(Utils.FormatNumberAbbr(sygz))}` : `${Utils.Yang(sygz.toFixed(2))}`;
+          case Enums.TrayContent.Syl:
+            return `${Utils.Yang(gssyl.toFixed(2))}%`;
+          case Enums.TrayContent.Zsy:
+            return traySimpleIncomeSetting
+              ? `${Utils.Yang(Utils.FormatNumberAbbr(allCalcResult.sygz))}`
+              : `${Utils.Yang(allCalcResult.sygz.toFixed(2))}`;
+          case Enums.TrayContent.Zsyl:
+            return `${Utils.Yang(allCalcResult.gssyl.toFixed(2))}%`;
+          default:
+            break;
+        }
+      })
+      .join(' │ ');
+    content = !!content ? ` ${content}` : content;
+    return content;
+  })();
+
+  useEffect(() => {
+    const content = eyeStatus ? trayContent : '';
+
+    ipcRenderer.invoke('set-tray-content', content);
+  }, [trayContent, eyeStatus]);
+}
+
+export function useUpdateContextMenuWalletsState() {
+  const dispatch = useAppDispatch();
+  const wallets = useAppSelector((state) => state.wallet.wallets);
+  const currentWalletCode = useAppSelector((state) => state.wallet.currentWalletCode);
+  const walletConfig = useAppSelector((state) => state.wallet.config.walletConfig);
+
+  useEffect(() => {
+    ipcRenderer.invoke(
+      'update-tray-context-menu-wallets',
+      walletConfig.map((config) => {
+        const { sygz, gssyl } = Helpers.Wallet.CalcWallet({ code: config.code, walletConfig, wallets });
+        const value = `  ${Utils.Yang(sygz.toFixed(2))}  ${Utils.Yang(gssyl.toFixed(2))}%`;
+
+        return {
+          label: `${config.name}  ${value}`,
+          type: currentWalletCode === config.code ? 'radio' : 'normal',
+          dataURL: walletIcons[config.iconIndex],
+          id: config.code,
+        };
+      })
+    );
+  }, [wallets, currentWalletCode, walletConfig]);
+
+  useIpcRendererListener('change-current-wallet-code', (e, code) => {
+    try {
+      dispatch(changeCurrentWalletCodeAction(code));
+    } catch (error) {}
+  });
+}
+
+export function useAllConfigBackup() {
+  useIpcRendererListener('backup-all-config-export', async (e, code) => {
+    try {
+      const backupConfig = await Enhancement.GenerateBackupConfig();
+      const { filePath, canceled } = await dialog.showSaveDialog({
+        title: '保存',
+        defaultPath: `${backupConfig.name}-${backupConfig.timestamp}.${backupConfig.suffix}`,
+      });
+      if (canceled) {
+        return;
+      }
+      const encodeBackupConfig = await encryptFF(backupConfig);
+      await saveString(filePath!, encodeBackupConfig);
+      dialog.showMessageBox({
+        type: 'info',
+        title: `导出成功`,
+        message: `已导出全局配置文件至${filePath}`,
+      });
+    } catch (error) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: `导出失败`,
+        message: `导出全局配置文件失败`,
+      });
+    }
+  });
+  useIpcRendererListener('backup-all-config-import', async (e, code) => {
+    try {
+      const { filePaths, canceled } = await dialog.showOpenDialog({
+        title: '选择备份文件',
+        filters: [{ name: 'Fishing Funds', extensions: ['ff'] }],
+      });
+      const filePath = filePaths[0];
+      if (canceled || !filePath) {
+        return;
+      }
+      const encodeBackupConfig = await readStringFile(filePath);
+      const backupConfig: Backup.Config = await decryptFF(encodeBackupConfig);
+      await Enhancement.CoverBackupConfig(backupConfig);
+      const { response } = await dialog.showMessageBox({
+        type: 'info',
+        title: `导入成功`,
+        message: `请重新启动Fishing Funds`,
+        buttons: ['重启', '关闭'],
+      });
+      if (response === 0) {
+        app.relaunch();
+      } else {
+        app.quit();
+      }
+    } catch (error) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: `导入失败`,
+        message: `导入全局配置文件失败`,
+      });
+    }
+  });
+  useIpcRendererListener('open-backup-file', async (e, filePath) => {
+    try {
+      const encodeBackupConfig = await readStringFile(filePath);
+      const backupConfig: Backup.Config = await decryptFF(encodeBackupConfig);
+      const { response } = await dialog.showMessageBox({
+        title: `确认从备份文件恢复`,
+        message: `备份时间：${dayjs(backupConfig.timestamp).format('YYYY-MM-DD HH:mm:ss')} ，当前数据将被覆盖，请谨慎操作`,
+        buttons: ['确定', '取消'],
+      });
+      if (response === 0) {
+        await Enhancement.CoverBackupConfig(backupConfig);
+        const { response } = await dialog.showMessageBox({
+          type: 'info',
+          title: `恢复成功`,
+          message: `请重新启动Fishing Funds`,
+          buttons: ['重启', '关闭'],
+        });
+        if (response === 0) {
+          app.relaunch();
+        } else {
+          app.quit();
+        }
+      }
+    } catch (error) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: `恢复失败`,
+        message: `恢复备份文件失败`,
+      });
+    }
+  });
+}
+
+export function useTouchBar() {
+  const dispatch = useAppDispatch();
+  const zindexs = useAppSelector((state) => state.zindex.zindexs);
+  const activeKey = useAppSelector((state) => state.tabs.activeKey);
+  const eyeStatus = useAppSelector((state) => state.wallet.eyeStatus);
+  const currentWallet = useAppSelector((state) => state.wallet.currentWallet);
+  const currentWalletCode = useAppSelector((state) => state.wallet.currentWalletCode);
+  const walletsConfig = useAppSelector((state) => state.wallet.config.walletConfig);
+  const fundConfigCodeMap = useAppSelector((state) => state.wallet.fundConfigCodeMap);
+  const bottomTabsSetting = useAppSelector((state) => state.setting.systemSetting.bottomTabsSetting);
+
+  useEffect(() => {
+    ipcRenderer.invoke(
+      'update-touchbar-zindex',
+      zindexs.slice(0, 1).map((zindex) => ({
+        label: `${zindex.name} ${zindex.zsz}`,
+        backgroundColor: Utils.GetValueColor(zindex.zdf).color,
+      }))
+    );
+  }, [zindexs]);
+
+  useEffect(() => {
+    const walletConfig = Helpers.Wallet.GetCurrentWalletConfig(currentWalletCode, walletsConfig);
+    const calcResult = Helpers.Fund.CalcFunds(currentWallet.funds, fundConfigCodeMap);
+    const value = Utils.Yang(calcResult.gssyl.toFixed(2));
+
+    ipcRenderer.invoke('update-touchbar-wallet', [
+      {
+        id: currentWalletCode,
+        label: `${value}%`, // 只显示当前钱包
+        dataURL: walletIcons[walletConfig.iconIndex],
+      },
+    ]);
+  }, [currentWallet, currentWalletCode, walletsConfig, fundConfigCodeMap]);
+
+  useEffect(() => {
+    ipcRenderer.invoke(
+      'update-touchbar-tab',
+      bottomTabsSetting
+        .filter(({ show }) => show)
+        .map((tab) => ({
+          label: tab.name,
+          selected: tab.key === activeKey,
+        }))
+    );
+  }, [activeKey]);
+
+  useEffect(() => {
+    ipcRenderer.invoke('update-touchbar-eye-status', eyeStatus);
+  }, [eyeStatus]);
+
+  useIpcRendererListener('change-tab-active-key', (e, key) => {
+    dispatch(syncTabsActiveKeyAction(key));
+  });
+  useIpcRendererListener('change-eye-status', (e, key) => {
+    dispatch(toggleEyeStatusAction());
+  });
+}
+
+export function useShareStoreState() {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    startListening();
+  }, []);
+
+  useIpcRendererListener('sync-store-data', (event, action: UnknownAction) => {
+    dispatch(action);
+  });
+}
+
+export function useSyncConfig() {
+  const dispatch = useAppDispatch();
+  const syncConfigSetting = useAppSelector((state) => state.setting.systemSetting.syncConfigSetting);
+  const syncConfigPathSetting = useAppSelector((state) => state.setting.systemSetting.syncConfigPathSetting);
+
+  useEffect(() => {
+    if (syncConfigSetting && syncConfigPathSetting) {
+      dispatch(saveSyncConfigAction());
+    }
+  }, [syncConfigSetting, syncConfigPathSetting]);
+}
+
+export function useTranslate() {
+  const dispatch = useAppDispatch();
+  const show = useAppSelector((state) => state.translate.show); // translate当前显示状态
+
+  useIpcRendererListener('trigger-translate', (event, visible: boolean) => {
+    // menubar 当前显示状态
+    if (visible) {
+      if (show) {
+        ipcRenderer.invoke('set-menubar-visible', false);
+        dispatch(syncTranslateShowAction(false));
+      } else {
+        dispatch(syncTranslateShowAction(true));
+      }
+    } else {
+      if (show) {
+        flushSync(() => {
+          dispatch(syncTranslateShowAction(false));
+        });
+      }
+      dispatch(syncTranslateShowAction(true));
+      ipcRenderer.invoke('set-menubar-visible', true);
+    }
+  });
+}
+
+export function useForceReloadApp() {
+  useIpcRendererListener('force-reload-app', async (event) => {
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      title: `崩溃重载`,
+      message: `程序将重新加载`,
+      buttons: ['确定', '取消'],
+    });
+    if (response === 0) {
+      window.location.reload();
+    }
+  });
+}

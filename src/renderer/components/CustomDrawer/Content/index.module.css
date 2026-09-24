@@ -1,0 +1,35 @@
+.content {
+  border-top-left-radius: var(--base-radius);
+  border-top-right-radius: var(--base-radius);
+  background-color: var(--inner-color);
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  width: 100%;
+  background-color: var(--blur-color);
+  backdrop-filter: saturate(180%) blur(20px);
+  top: 0;
+  padding: 10px;
+  box-sizing: border-box;
+  z-index: 3;
+
+  h3 {
+    color: var(--main-text-color);
+    flex: 1;
+    text-align: center;
+    margin: 0 calc(var(--base-padding) * 2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: keep-all;
+    white-space: nowrap;
+  }
+}
+
+.body {
+}

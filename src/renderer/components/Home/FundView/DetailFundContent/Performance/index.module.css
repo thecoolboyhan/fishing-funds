@@ -1,0 +1,7 @@
+.content {
+  display: block;
+  z-index: 2;
+}
+.zdhc {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+}

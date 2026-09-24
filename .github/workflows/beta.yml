@@ -1,0 +1,44 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# This workflow will install Deno and run tests across stable and canary builds on Windows, Ubuntu and macOS.
+# For more information see: https://github.com/denoland/setup-deno
+
+name: Build Beta
+
+on:
+  push:
+    branches: [beta]
+
+jobs:
+  build_beta:
+    runs-on: macos-latest # runs a publish on macOS
+
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+      - run: git push --delete origin beta
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: |
+          pnpm update
+          pnpm i
+
+      - name: Run build
+        run: pnpm beta-all
+        env:
+          USE_HARD_LINKS: false
+          GH_TOKEN: ${{ github.token }}

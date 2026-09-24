@@ -1,0 +1,10 @@
+.content {
+  border-radius: var(--base-radius);
+  overflow: hidden;
+  margin-bottom: var(--base-padding);
+  background-color: var(--background-color);
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}

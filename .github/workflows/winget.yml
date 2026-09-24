@@ -1,0 +1,12 @@
+name: Publish to WinGet
+on:
+  release:
+    types: [released]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: 1zilc.FishingFunds
+          token: ${{ secrets.WINGET_TOKEN }}

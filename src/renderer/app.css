@@ -1,0 +1,48 @@
+* {
+  -electron-corner-smoothing: system-ui;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  color: var(--main-text-color);
+  cursor: default;
+  user-select: none;
+  width: 100% !important;
+}
+
+body::-webkit-scrollbar {
+  width: 0;
+}
+
+a {
+  color: var(--primary-color);
+}
+
+h3 {
+  font-size: calc(var(--base-font-size) * 1.2);
+  margin: 0;
+  line-height: 24px;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    filter: brightness(105%);
+  }
+}
+
+.red {
+  color: red;
+}
+
+:focus-visible {
+  outline: none;
+}
+
+.max-content {
+  max-width: 400px;
+  margin: 0 auto;
+}
