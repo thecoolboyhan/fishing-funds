@@ -1230,7 +1230,7 @@ export async function GetTodayListFromEastmoney(type: number) {
         _: Date.now(),
       },
       headers: {
-        Referer: 'ttp://fund.eastmoney.com/',
+        Referer: 'https://fund.eastmoney.com/',
       },
       responseType: 'json',
     });
