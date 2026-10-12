@@ -30,6 +30,9 @@ const Origin: React.FC<OriginProps> = ({ code }) => {
       case Enums.FundApiType.Fund10jqka:
         shell.openExternal(`http://fund.10jqka.com.cn/${code}/`);
         break;
+      case Enums.FundApiType.Sina:
+        shell.openExternal(`https://finance.sina.com.cn/fund/quotes/${code}/bc.shtml`);
+        break;
       case Enums.FundApiType.Tencent:
         shell.openExternal(`https://gu.qq.com/${code}`);
         break;

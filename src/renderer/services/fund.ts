@@ -5,24 +5,59 @@ import dayjs from 'dayjs';
 import request from '@/utils/request';
 import * as Utils from '@/utils';
 
+// 上一个交易日（仅按周末调整，法定节假日不感知；长假后首个交易日可能偏差一天）
+function GetPrevTradingDay(date: string) {
+  let d = dayjs(date).subtract(1, 'day');
+  while (d.day() === 0 || d.day() === 6) {
+    d = d.subtract(1, 'day');
+  }
+  return d.format('YYYY-MM-DD');
+}
+
 // 天天基金
+// 注意：2026-01 证监会《机构监管情况通报》要求持牌代销平台下架场外基金盘中估值，
+// fundgz.1234567.com.cn 实时估值接口已随之下线（任意代码均返回 404 页），此处不再请求。
+// 保留的降级链：场内 ETF/LOF 走 push2 分时（IOPV 不受监管影响）→ 其余拿官方净值展示"暂无估值"。
 export async function FromEastmoney(code: string) {
+  return await GetEtfFundHourFromEastMoney(code);
+}
+
+// 新浪财经
+// 监管后仅存的场外基金实时估值渠道之一（实测 2026-10 盘中持续更新）。
+// 接口返回 GBK 编码的 JS 变量，需 arraybuffer + TextDecoder('gbk') 手动解码，且必须带 Referer。
+// 字段：名称,时间,估算净值,单位净值,累计净值,,估算涨幅%,日期,,
+export async function FromSina(code: string) {
   try {
-    const { body } = await request(`https://fundgz.1234567.com.cn/js/${code}.js`, {
-      responseType: 'text',
+    const { body } = await request(`https://hq.sinajs.cn/list=fu_${code}`, {
+      responseType: 'arraybuffer',
+      headers: {
+        Referer: 'https://finance.sina.com.cn',
+      },
     });
-    if (body.startsWith('jsonpgz')) {
-      const fund: Fund.ResponseItem = eval(body);
-      if (fund === undefined || fund.gsz === '' || Number.isNaN(Number(fund.gszzl))) {
-        return await GetEtfFundHourFromEastMoney(code);
-      } else {
-        return fund;
-      }
-    } else {
-      return;
+    const text = new TextDecoder('gbk').decode(new Uint8Array(body));
+    const matched = text.match(/="([^"]*)";?/);
+    const raw = matched?.[1];
+    // 空串：货币基金等无估值品种（如 fu_000198），降级为天天基金官方净值
+    if (!raw) {
+      return await GetQDIIFundFromEastMoney(code);
     }
+    const [name, time, gsz, dwjz, , , gszzl, date] = raw.split(',');
+    if (!name || !gsz || !dwjz || !date) {
+      return await GetQDIIFundFromEastMoney(code);
+    }
+    return {
+      name,
+      fundcode: code,
+      gztime: `${date} ${time}`,
+      gsz,
+      gszzl,
+      // 新浪只给估值日期，净值日期按上一交易日推算（节假日边界可能偏差一天，
+      // 当日净值发布后由 GetFixFunds/MergeFixFunds 的官方数据纠正）
+      jzrq: GetPrevTradingDay(date),
+      dwjz,
+    };
   } catch (error) {
-    return await GetEtfFundHourFromEastMoney(code);
+    return await GetQDIIFundFromEastMoney(code);
   }
 }
 
@@ -510,6 +545,42 @@ export async function GetSecuritiesWareHouseFromEastmoney(code: string, securiti
   }
 }
 
+// 从天天基金获取历史净值（f10/lsjz JSON 接口）
+// 相比 pingzhongdata 的 JS 解析更稳，但每页固定返回 20 条，需分页抓取后拼接
+export async function GetNetWorthTrendFromEastmoney(code: string, pageCount = 10) {
+  try {
+    const pages = await Promise.all(
+      Array.from({ length: pageCount }, (_, i) =>
+        request<{
+          Data?: { LSJZList: { FSRQ: string; DWJZ: string; JZZZL: string }[] };
+        }>(`https://api.fund.eastmoney.com/f10/lsjz`, {
+          searchParams: {
+            fundCode: code,
+            pageIndex: i + 1,
+            pageSize: 20,
+          },
+          headers: {
+            Referer: `https://fundf10.eastmoney.com/jjjz_${code}.html`,
+          },
+          responseType: 'json',
+        })
+      )
+    );
+    const list = pages
+      .flatMap(({ body }) => body?.Data?.LSJZList || [])
+      .filter((item) => item && item.FSRQ)
+      .map((item) => ({
+        x: dayjs(item.FSRQ).valueOf(),
+        y: Number(item.DWJZ),
+        equityReturn: Number(item.JZZZL),
+      }))
+      .reverse(); // lsjz 按日期倒序返回，图表需要正序
+    return list;
+  } catch (error) {
+    return [];
+  }
+}
+
 // 从天天基金获取基金详情
 export async function GetFundDetailFromEastmoney(code: string) {
   try {
@@ -517,9 +588,17 @@ export async function GetFundDetailFromEastmoney(code: string) {
       responseType: 'text',
     });
     const response: Fund.PingzhongData = Utils.Parsepingzhongdata(body);
+    // pingzhongdata 为非官方 JS 接口，存在变动/缺失风险；历史净值为空时用 f10/lsjz 补齐
+    if (!response.Data_netWorthTrend?.length) {
+      const trend = await GetNetWorthTrendFromEastmoney(code);
+      if (trend.length) {
+        response.Data_netWorthTrend = trend;
+      }
+    }
     return response;
   } catch (error) {
-    return;
+    const trend = await GetNetWorthTrendFromEastmoney(code);
+    return trend.length ? ({ Data_netWorthTrend: trend } as Fund.PingzhongData) : undefined;
   }
 }
 

@@ -40,14 +40,9 @@ const { platform } = window.contextModules.process;
 
 export const APIOptions = [
   {
-    name: '东方财富-天天基金',
-    code: Enums.FundApiType.Eastmoney,
+    name: '新浪财经',
+    code: Enums.FundApiType.Sina,
     recommond: '★★★★★ (推荐)',
-  },
-  {
-    name: '支付宝-蚂蚁基金',
-    code: Enums.FundApiType.Ant,
-    recommond: '★★★★☆',
   },
   {
     name: '同花顺-爱基金',
@@ -55,9 +50,19 @@ export const APIOptions = [
     recommond: '★★★★☆',
   },
   {
+    name: '东方财富-天天基金',
+    code: Enums.FundApiType.Eastmoney,
+    recommond: '★★★☆☆ (估值已下线)',
+  },
+  {
+    name: '支付宝-蚂蚁基金',
+    code: Enums.FundApiType.Ant,
+    recommond: '★★★☆☆',
+  },
+  {
     name: '腾讯证券',
     code: Enums.FundApiType.Tencent,
-    recommond: '★★★★☆',
+    recommond: '★☆☆☆☆ (接口已下线)',
   },
 ];
 

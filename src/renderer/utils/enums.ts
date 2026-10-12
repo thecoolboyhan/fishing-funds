@@ -9,6 +9,7 @@ export enum FundApiType {
   Tencent, // 腾讯证券
   Ant, // 支付宝-蚂蚁基金
   Fund10jqka, // 同花顺-爱基金
+  Sina, // 新浪财经（追加在末尾，避免改变已存设置项的数值）
 }
 
 export enum FundSortType {

@@ -21,7 +21,9 @@ export type SettingState = {
 };
 
 export const defaultSystemSetting: System.Setting = {
-  fundApiTypeSetting: Enums.FundApiType.Eastmoney,
+  // 2026-10 改为新浪财经：天天基金估值接口已随监管下线，新浪是仅存的实时估值渠道
+  // 注意：已安装用户的旧设置不会自动迁移，需在「设置 → 基金接口」手动切换一次
+  fundApiTypeSetting: Enums.FundApiType.Sina,
 
   themeColorTypeSetting: Enums.ThemeColorType.Default,
   customThemeColorSetting: '',

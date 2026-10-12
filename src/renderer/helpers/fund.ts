@@ -42,6 +42,8 @@ export async function GetFunds(config: Fund.SettingItem[], fundApiTypeSetting: E
         return Adapter.ChokeGroupAdapter(collectors, 4, 400);
       case Enums.FundApiType.Fund10jqka:
         return Adapter.ChokeGroupAdapter(collectors, 5, 500);
+      case Enums.FundApiType.Sina:
+        return Adapter.ChokeGroupAdapter(collectors, 5, 300);
       case Enums.FundApiType.Eastmoney:
       default:
         return Adapter.ChokeGroupAdapter(collectors, 5, 500);
@@ -60,6 +62,8 @@ export async function GetFund(code: string, fundApiTypeSetting: Enums.FundApiTyp
       return Services.Fund.FromFund123(code);
     case Enums.FundApiType.Fund10jqka:
       return Services.Fund.FromFund10jqka(code);
+    case Enums.FundApiType.Sina:
+      return Services.Fund.FromSina(code);
     case Enums.FundApiType.Eastmoney:
     default:
       // 默认请求天天基金
