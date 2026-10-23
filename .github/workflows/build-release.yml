@@ -142,20 +142,19 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
       - name: Decode signing keystore (if provided)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 未配置，跳过签名（将产出未签名 APK）"
+            exit 0
+          fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/release-key.jks
-          cat > android/keystore.properties <<EOF
-          storeFile=release-key.jks
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          EOF
+          printf 'storeFile=release-key.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD" > android/keystore.properties
       - name: Build release APK
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleRelease
