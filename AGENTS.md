@@ -166,6 +166,7 @@ fishing-funds/
   仅在本地无 `WALLET_SETTING` 时生效，绝不覆盖既有配置。已实测落盘。
 - **移动端适配**：`mobile.css` 去掉裸 `@media (max-width:600px)`（曾误伤 325px 桌面小窗、把 antd Switch 撑成灰色块）；
   `baseFontSizeSetting` 12→13，字号滑杆上限 14→16。
+- **货币数据源切换 Coingecko**（2026-10-23，`android-capacitor` 分支工作区改动）：CoinCap v2 停止服务，货币排行榜改走 `api.coingecko.com/api/v3/coins/markets`（`coin.ts` 重写 + `MainRank` 调用），并修复 `GetHistoryFromCoingecko` 的 gzip 未解压白图问题（见 §9.4）。
 
 ### 待办（多为需人类动手 / 外部操作）
 
@@ -363,8 +364,40 @@ git push --force origin "$C:$REF"                 # 快照分支无有效历史�
 
 ---
 
-_最后更新：2026-09-23（新增默认分支 `main` 单提交快照，使仓库主页 Contributors 只显示维护者；
-其余分支保留上游完整历史。原「安卓联调第三轮」内容见下。）_
+## 9. v0.2.0 变更记录（2026-09-24 ~ 2026-10-23，分支 android-capacitor）
+
+自 v0.1.0（tag `c5754f3`）以来的改动，主线：**数据源大修 + 打包版本修复**。
+
+### 9.1 基金估值源切换新浪（commit `17fa647`，2026-10-12）
+- 背景：2026-01 证监会《机构监管情况通报》要求持牌代销平台下架场外基金盘中估值后，`fundgz.1234567.com.cn`（天天基金实时估值）任意代码返回 404，腾讯 `ifzq` 返回 interface offline，二者已不可用。
+- 新增新浪财经源 `hq.sinajs.cn/list=fu_{code}`（GBK 解码 + Referer 伪装），设为**默认**基金估值接口。
+- 货币基金等无估值品种自动降级为天天基金官方净值；`FromEastmoney` 不再请求已下线的估值接口，改走 push2 ETF 分时 / QDII 官方净值降级链，无估值时展示「暂无估值」而非伪造估算。
+- 新增 `GetNetWorthTrendFromEastmoney`（`f10/lsjz` JSON 分页）作为 `pingzhongdata` 历史净值的兜底。
+- 涉及：`src/renderer/services/fund.ts`(+105)、`helpers/fund.ts`、`store/features/setting.ts`、`utils/enums.ts`、`SettingContent`、`DetailFundContent/Origin`、README。
+
+### 9.2 修复 GetFundGZList Referer 拼写（commit `c8821a3`，2026-09-24）
+- `fund.ts` 的 Referer 写成 `ttp://fund.eastmoney.com/`（少了 `h`）。当前接口不校验 Referer 未暴露，上游加校验即断数据，提前修好。
+
+### 9.3 打包版本号修复（commit `755fbff`，2026-10-13，HEAD）
+- Capacitor 改造后 `build.directories.app` 指向 `release/app`，electron-builder 实际读 `release/app/package.json`（非根）。仅给根补 `version` 无效。
+- 将 `release/app/package.json` 的 `version` 同步为 `0.2.0` 并补 `author`，修复打包产物 `CFBundleShortVersionString` 停留在 `8.7.1` 与日志 "author is missed" 警告。
+- 根 `package.json` 也补了 `version: 0.2.0`（electron-builder 不读，仅元数据正确）。
+
+### 9.4 货币数据源切换 Coingecko（coin.ts 工作区改动，2026-10-23）
+- CoinCap v2 API（`api.coincap.io/v2/assets`）已停止服务，连接即失败，`FromCoinCap` 恒返回 `[]`，货币排行榜整体为空。
+- 货币排行榜改为 Coingecko `/coins/markets`（`FromCoingeckoMarkets`），与钱包货币列表同域（`api.coingecko.com`），国内直连可用；按市值降序，字段对齐排行榜消费契约。
+- 删除已失效的 `GetFromCoinCap` / `GetHistoryFromCoinCap`。
+- `GetHistoryFromCoingecko` 去掉 `Accept-Encoding: gzip` 头：服务端返回 gzip 体，本项目 HTTP 客户端（undici）不做自动解压，`body.json()` 抛错被 catch 静默吞掉 →「近期走势」白图（2026-10-23 实测）。
+- Coingecko 公共接口有频率限制，遇 429 时排行榜偶发为空，手动刷新即恢复。
+
+### 9.5 发版前待确认
+- `android/app/build.gradle` 的 `versionCode` / `versionName` 当前为 `1` / `0.1.0`（落后于 §8 记录的 fork.1 状态），发版前须 bump（建议 `versionCode 3` / `versionName "0.2.0"`）。
+- 安卓 release 签名密钥（`android/keystore.properties` + `.jks`）只在打包机本地，**未入库**；CI 无密钥时 `assembleRelease` 出**未签名** APK（无法安装）。要发可升级的签名包，要么把 keystore 以 GitHub Secret 注入 CI，要么在打包机本地 `assembleRelease` 后手动上传 APK。
+
+---
+
+_最后更新：2026-10-23（新增 §9 v0.2.0 变更记录：新浪基金估值源、Referer 修复、打包版本号修复、货币源切 Coingecko；
+并补充安卓 `versionCode/versionName` 待 bump 与签名密钥说明。其余分支保留上游完整历史。）_
 
 _历史：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
 catch 回 `__failed` + `index.html` inline 桥 `webviewFetch`），修复股票/指数行情、分时、K线与详情页全空；
