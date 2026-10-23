@@ -81,7 +81,12 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
+        shell: bash
         run: |
+          # Windows runner 默认 shell 是 pwsh，内联 env 前缀不可用，故显式用 bash。
+          # 删除 package-lock.json 以规避 npm 跨平台 optionalDependencies Bug（npm/cli#4828，
+          # 表现为 @rollup/rollup-win-x64-msvc 找不到）。
+          rm -rf node_modules package-lock.json
           PHANTOMJS_SKIP_DOWNLOAD=true npm install --no-audit --no-fund
           node node_modules/electron/install.js
       - name: Build renderer + main
@@ -107,6 +112,9 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: |
+          # 删除 package-lock.json 以规避 npm 跨平台 optionalDependencies Bug（npm/cli#4828，
+          # 表现为 @rollup/rollup-linux-x64-gnu 找不到）。
+          rm -rf node_modules package-lock.json
           PHANTOMJS_SKIP_DOWNLOAD=true npm install --no-audit --no-fund
           node node_modules/electron/install.js
       - name: Build renderer + main
@@ -124,6 +132,10 @@ jobs:
   build-android:
     needs: meta
     runs-on: ubuntu-latest
+    env:
+      # 手动安装 Android SDK 需要显式指定路径，gradlew 与 sdkmanager 都依赖它。
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -133,14 +145,26 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Install SDK packages + accept licenses
+      - name: Install Android command-line tools
+        run: |
+          # android-actions/setup-android@v3 内部硬编码 `sdkmanager tools`（该包早已下架），
+          # 会导致 exit 1。这里改为手动安装 cmdline-tools，完全可控。
+          SDK="$ANDROID_HOME"
+          mkdir -p "$SDK/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdtools.zip
+          unzip -o -q /tmp/cmdtools.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+      - name: Install SDK packages and accept licenses
         run: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
       - name: Install dependencies
-        run: PHANTOMJS_SKIP_DOWNLOAD=true ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund
+        run: |
+          # 删除 lock 规避 npm 跨平台 optionalDependencies Bug（同 Linux/Windows）。
+          # 安卓只需 web 构建产物，跳过 electron 二进制下载以加快构建。
+          rm -rf node_modules package-lock.json
+          PHANTOMJS_SKIP_DOWNLOAD=true ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund
       - name: Build web assets
         run: npm run build
       - name: Sync Capacitor
