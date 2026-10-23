@@ -29,7 +29,9 @@ android {
     if (hasReleaseSigning) {
         signingConfigs {
             release {
-                storeFile file(keystoreProps['storeFile'])
+                // storeFile 与 keystore.properties 同处仓库 android/ 目录（rootProject），
+                // 用 rootProject.file 解析，避免默认相对 :app 模块目录（android/app/）导致找不到密钥。
+                storeFile rootProject.file(keystoreProps['storeFile'])
                 storePassword keystoreProps['storePassword']
                 keyAlias keystoreProps['keyAlias']
                 keyPassword keystoreProps['keyPassword']
