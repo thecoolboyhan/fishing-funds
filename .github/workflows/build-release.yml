@@ -39,6 +39,7 @@ jobs:
       - name: Ensure draft release exists
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           TAG="${{ steps.meta.outputs.tag }}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
@@ -68,6 +69,7 @@ jobs:
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release upload "${{ needs.meta.outputs.tag }}" release/build/*.dmg --clobber
 
   build-win:
@@ -91,6 +93,7 @@ jobs:
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: gh release upload "${{ needs.meta.outputs.tag }}" "release/build/*.exe" --clobber
 
@@ -115,6 +118,7 @@ jobs:
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release upload "${{ needs.meta.outputs.tag }}" release/build/*.AppImage --clobber
 
   build-android:
@@ -161,6 +165,7 @@ jobs:
       - name: Upload APK
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           APK=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
           gh release upload "${{ needs.meta.outputs.tag }}" "$APK" --clobber
