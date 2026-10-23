@@ -1,0 +1,125 @@
+.content {
+  padding: 0 0 var(--base-padding) 0;
+  overflow-y: scroll;
+  height: calc(100vh - 48px);
+
+  &::-webkit-scrollbar {
+    width: 0;
+  }
+
+  h3 {
+    color: var(--main-text-color);
+    font-size: calc(var(--base-font-size) * 4 / 3);
+  }
+
+  section {
+    padding: 5px 0;
+  }
+
+  label {
+    font-size: var(--base-font-size);
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 600;
+  }
+}
+
+.container {
+  padding: 0 var(--base-padding);
+}
+
+.introduce {
+}
+
+.detail {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% / 3);
+}
+
+.detailItemLabel {
+  color: var(--inner-text-color);
+}
+
+.zdf {
+  font-size: calc(var(--base-font-size) * 5 / 3);
+  font-size: 600;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  span {
+    word-break: break-all;
+
+    &:nth-child(2) {
+      word-break: keep-all;
+      margin-left: 10px;
+    }
+  }
+}
+.subTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(var(--base-font-size) * 11 / 12);
+  margin-bottom: 5px;
+}
+
+.avatarContent {
+  width: 100%;
+  min-height: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  position: relative;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--base-padding);
+
+  &::before {
+    content: '';
+    display: block;
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    z-index: 1;
+    backdrop-filter: saturate(180%) blur(50px);
+  }
+}
+
+.avatar {
+  width: 50vw;
+  height: 50vw;
+  border-radius: 50%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: var(--inner-color);
+  transition: all 0.2s;
+  z-index: 2;
+
+  img {
+    transition: all 0.2s;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.avatarMiniMode {
+  width: 96px;
+  height: 96px;
+}

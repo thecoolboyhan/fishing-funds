@@ -1,0 +1,56 @@
+.noScroll {
+  &::-webkit-scrollbar {
+    width: 0;
+  }
+}
+.flex {
+  display: flex;
+}
+.flex-column {
+  flex-direction: column;
+}
+.f-j-c-c {
+  justify-content: center;
+}
+.f-j-c-sa {
+  justify-content: space-around;
+}
+.f-a-i-c {
+  align-items: center;
+}
+
+.text-center {
+  text-align: center;
+}
+.text-left {
+  text-align: left;
+}
+.text-right {
+  text-align: right;
+}
+.card-body {
+  padding: var(--base-padding);
+  padding-bottom: 15px;
+}
+.hoverable {
+  transition: background-color 0.2s, box-shadow 0.2s, border 0.2s;
+  &:hover {
+    box-shadow: 0 2px 10px var(--hover-color);
+    background-color: var(--hover-color);
+  }
+}
+.selected {
+  transition: background 0.2s, box-shadow 0.2s, border 0.2s;
+  box-shadow: 0 2px 10px var(--selected-color) !important;
+  background-color: var(--selected-color) !important;
+}
+
+.brightness {
+  &:hover {
+    filter: brightness(115%);
+  }
+}
+
+.copify {
+  -webkit-user-select: text;
+}

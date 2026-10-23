@@ -1,0 +1,79 @@
+.content {
+  position: relative;
+  min-height: calc(100vh - 80px);
+  box-sizing: border-box;
+  padding: var(--base-padding);
+  padding-bottom: 80px;
+}
+.row {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  position: relative;
+  padding: 10px;
+  cursor: pointer;
+  box-sizing: border-box;
+  border: 1px dashed var(--background-color);
+
+  &:hover {
+    .icon {
+      transform: scale(1.1);
+    }
+  }
+}
+.rowBg {
+  position: absolute;
+  filter: blur(40px);
+  width: 100%;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+.cover {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background-color: var(--blur-color);
+}
+.icon {
+  transition: all 0.2s;
+  height: calc(var(--base-font-size) * 10 / 3);
+  width: calc(var(--base-font-size) * 10 / 3);
+  display: block;
+  z-index: 2;
+  margin-right: 10px;
+}
+
+.rowInfo {
+  flex: 1;
+  z-index: 2;
+  color: var(--main-text-color);
+  .time {
+    font-size: calc(var(--base-font-size) * 5 / 6);
+    font-weight: 400;
+  }
+  .name {
+    font-weight: 600;
+    font-size: calc(var(--base-font-size) * 1.2);
+  }
+  .editor {
+    margin-left: 10px;
+    cursor: pointer;
+    height: 12px;
+    width: 12px;
+    fill: var(--svg-icon-color);
+  }
+}
+.remove {
+  z-index: 2;
+  &:hover {
+    cursor: pointer;
+  }
+}
+.checkbox {
+  fill: var(--primary-color);
+  z-index: 2;
+}

@@ -1,0 +1,17 @@
+.content {
+  height: 50px;
+  transition: height 0.2s;
+  font-size: calc(var(--base-font-size) * 5 / 6);
+  line-height: 30px;
+  text-align: center;
+  color: var(--secondary-main-text-color);
+  overflow: hidden;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disable {
+  height: 0;
+}

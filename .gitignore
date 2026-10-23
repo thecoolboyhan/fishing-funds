@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Coverage directory used by tools like istanbul
+coverage
+.eslintcache
+
+# Dependency directory
+# https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
+node_modules
+
+# OSX
+.DS_Store
+
+.idea
+npm-debug.log.*
+*.css.d.ts
+*.sass.d.ts
+*.scss.d.ts
+
+yarn.lock
+yarn-error.log
+.yarnrc
+# pnpm-lock.yaml
+# package-lock.json
+
+# src js
+/src/**/*.js
+
+# 构建
+release/app/dist
+release/build
+
+# ── 安卓发布签名（绝不入库）──
+android/keystore.properties
+*.jks
+*.keystore
+
+# ── 安卓构建产物 / Gradle 缓存 ──
+android/build
+android/app/build
+android/.gradle
+android/local.properties
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# 快照提交信息草稿
+.snapshot-msg.txt

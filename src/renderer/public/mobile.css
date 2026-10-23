@@ -1,0 +1,28 @@
+/* Fishing Funds — 移动端(安卓)最小响应式适配。
+   两条铁律（都是踩过坑换来的）：
+   1) 所有规则一律挂在 html.platform-android 下（该类由 index.html 的桥引导脚本注入）。
+      **绝不写裸媒体查询**——macOS 菜单栏小窗默认宽仅 325px，裸 @media (max-width:600px / 900px)
+      会连桌面端一起命中。
+   2) **绝不给「所有 button / a」加 min-height 之类的尺寸**。本应用的布局是「紧凑型、
+      容器高度写死」的（例：SortBar 的 .content 固定 height:32px），给子元素强加 min-height
+      会让子元素比容器更高、向上溢出——表现为「管理 / 榜单」等文字位置偏上。
+      历史坑：`button { min-height:36px }` 还把 antd 的 small Switch（16px）撑成灰色方块。
+      若确需放大某个控件的点击热区，请**逐个组件**做，并同步调整其容器高度。
+   结论：本文件只做「视口级」适配，不碰任何组件尺寸。 */
+
+/* 安卓全屏 WebView：充满视口、禁横向溢出、关点击高亮与文字自动缩放、隐藏滚动条 */
+html.platform-android {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+html.platform-android body,
+html.platform-android #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+html.platform-android ::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

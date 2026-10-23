@@ -1,0 +1,46 @@
+.content {
+  padding: 10px 15px;
+
+  section {
+    padding: 5px 0;
+  }
+
+  label {
+    font-size: var(--base-font-size);
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 600;
+  }
+}
+
+.none {
+  font-size: var(--base-font-size);
+  color: #d65746;
+}
+
+.stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--base-padding) 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background-color: var(--hover-color);
+  }
+}
+
+.name {
+  font-size: var(--base-font-size);
+  font-weight: 600;
+  padding-right: 10px;
+
+  .nameText {
+    margin-right: 10px;
+  }
+}
+
+.code {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+}

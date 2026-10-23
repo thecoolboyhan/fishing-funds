@@ -1,0 +1,40 @@
+.content {
+  display: block;
+}
+
+.none {
+  font-size: var(--base-font-size);
+  color: #d65746;
+}
+
+.stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--base-padding);
+  cursor: pointer;
+}
+
+.name {
+  font-size: var(--base-font-size);
+  font-weight: 600;
+  padding-right: 10px;
+
+  .nameText {
+    margin-right: 10px;
+  }
+}
+
+.tag {
+  padding: 2px 3px;
+  border-radius: 3px;
+  color: var(--main-text-color);
+  border: 1px solid var(--main-text-color);
+  font-size: calc(var(--base-font-size) * 5 / 6);
+
+  white-space: nowrap;
+}
+
+.code {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+}

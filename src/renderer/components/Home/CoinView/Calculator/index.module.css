@@ -1,0 +1,51 @@
+.content {
+  display: block;
+  padding: var(--base-padding);
+}
+
+.card {
+  padding: var(--base-padding);
+}
+.row {
+  margin-bottom: var(--base-padding);
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+.info {
+  margin-top: var(--base-padding);
+}
+.item {
+  display: flex;
+  justify-content: space-between;
+  label {
+    font-weight: 500;
+  }
+}
+
+.stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.name {
+  font-size: var(--base-font-size);
+  font-weight: 600;
+  padding-right: 10px;
+
+  .nameText {
+    margin-right: 10px;
+  }
+}
+
+.code {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+}
+.titleBar {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+}

@@ -1,0 +1,27 @@
+.selections {
+  margin: 20px 0px 10px;
+}
+
+.selection {
+  font-size: calc(var(--base-font-size) * 5 / 6);
+  padding: 1px 5px;
+  border-radius: 7px;
+  border: 1px solid var(--block-border-color);
+  cursor: pointer;
+  color: var(--cancel-text-color);
+  background-color: var(--cancel-color);
+  transition: all 0.2s;
+  position: relative;
+  text-align: center;
+  display: inline-block;
+
+  &:hover {
+    filter: brightness(105%);
+  }
+}
+
+.active {
+  color: var(--tag-text-color);
+  background-color: var(--primary-color);
+  border: 1px solid var(--block-border-color);
+}

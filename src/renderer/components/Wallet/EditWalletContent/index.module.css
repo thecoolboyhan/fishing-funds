@@ -1,0 +1,19 @@
+.content {
+  padding: 10px 15px;
+
+  section {
+    padding: 5px 0;
+  }
+
+  label {
+    font-size: var(--base-font-size);
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 600;
+  }
+}
+
+.none {
+  font-size: var(--base-font-size);
+  color: #d65746;
+}

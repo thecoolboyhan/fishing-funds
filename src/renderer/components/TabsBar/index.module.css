@@ -1,0 +1,38 @@
+.layout {
+  background-color: var(--blur-color);
+  backdrop-filter: saturate(180%) blur(20px);
+  height: 40px;
+  width: 100%;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  cursor: pointer;
+  height: 100%;
+  line-height: 40px;
+  font-size: var(--base-font-size);
+  opacity: 0.5;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.active {
+  font-size: calc(var(--base-font-size) * 1.2);
+  font-weight: 600;
+  opacity: 1 !important;
+}

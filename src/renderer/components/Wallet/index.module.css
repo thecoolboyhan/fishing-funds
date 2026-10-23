@@ -1,0 +1,148 @@
+.content {
+  border-bottom: 1px solid var(--border-color);
+  top: 0;
+  z-index: 2;
+  transition: height 0.2s;
+  position: absolute;
+  width: 100%;
+  background-color: var(--blur-color);
+  backdrop-filter: saturate(180%) blur(20px);
+  height: 100%;
+  box-sizing: border-box;
+  z-index: 3;
+}
+.walletIcon {
+  cursor: pointer;
+  height: 32px;
+  width: 32px;
+  transition: height 0.2s, width 0.2s;
+  background-color: transparent !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+  }
+}
+
+.eye {
+  transition: height 0.2s, width 0.2s;
+  height: 20px;
+  width: 20px;
+}
+.topBar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 5px 10px 0;
+}
+.slogan {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+.pal {
+  display: flex;
+  width: 100%;
+  font-size: 10px;
+  margin-left: 10px;
+  color: var(--secondary-main-text-color);
+  margin-top: 3px;
+  white-space: pre;
+  font-weight: 600;
+}
+.timeBar {
+  width: 100%;
+  margin-left: 10px;
+  font-size: 10px;
+  color: var(--secondary-main-text-color);
+  font-weight: 600;
+}
+.numBar {
+  display: flex;
+  padding: 0 10px;
+  align-items: center;
+  height: 30px;
+  cursor: pointer;
+}
+
+.sygz {
+  flex: 1;
+  display: flex;
+  font-size: 10px;
+  transition: all 0.2s;
+}
+.zsygz {
+  font-size: 22px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.numIndex {
+  width: 60%;
+  max-width: 200px;
+  text-align: center;
+  display: flex;
+  font-size: 10px;
+  padding-left: 10px;
+  box-sizing: border-box;
+  label {
+    color: var(--secondary-main-text-color);
+  }
+  & > div {
+    flex: 1;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+}
+.detailBar {
+  background-color: var(--hover-color);
+  display: flex;
+  flex-direction: column;
+  padding: 5px 10px;
+  box-sizing: border-box;
+  font-weight: 500;
+
+  & > div {
+    display: flex;
+    align-items: center;
+  }
+}
+.menuIcon {
+  display: block;
+  width: 20px;
+}
+.addIcon {
+  display: block;
+  width: 20px;
+  fill: var(--svg-icon-color);
+}
+.tag {
+  margin-right: 5px;
+}
+
+.miniMode {
+  .walletIcon {
+    height: 20px;
+    width: 20px;
+  }
+  .eye {
+    height: 16px;
+    width: 16px;
+  }
+  .timeBar {
+    font-size: 12px;
+  }
+
+  .zsygz {
+    font-size: 18px;
+  }
+  .numIndex {
+    font-size: 14px !important;
+  }
+}

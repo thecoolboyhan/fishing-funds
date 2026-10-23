@@ -1,0 +1,25 @@
+.content {
+  background-color: var(--background-color);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  box-sizing: border-box;
+  height: 40px;
+  width: 100%;
+
+  svg {
+    cursor: pointer;
+    fill: var(--svg-icon-color);
+    transition: all 0.2s;
+
+    &:hover {
+      fill: var(--main-text-color);
+      transform: scale(1.25);
+    }
+  }
+}
+.themeWrapper {
+  display: block;
+}

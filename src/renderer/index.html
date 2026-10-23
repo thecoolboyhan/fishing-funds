@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- ⚠️ 架构铁律运行时保障（见 ARCHITECTURE.md §2）：多端统一桥引导。
+         Electron 端预加载已暴露 window.contextModules，这里直接 return 跳过；
+         Android(Capacitor) 端惰性委托 window.Capacitor.Plugins.ContextModules，带 ready 重试。
+         禁止删除或外置本脚本。 -->
+    <script>
+      (function () {
+        if (window.contextModules) return; // Electron 预加载已提供，跳过
+        var cap = function () {
+          return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ContextModules;
+        };
+        var noop = function () { return Promise.resolve(undefined); };
+        // 直到 Capacitor 插件就绪再真正调用（最多 ~6s，每 30ms 重试），彻底消除时序问题
+        var whenReady = function (invoke) {
+          return new Promise(function (resolve, reject) {
+            var attempt = 0;
+            var tick = function () {
+              var p = cap();
+              if (p) {
+                try { invoke(p).then(resolve, reject); } catch (e) { reject(e); }
+              } else if (attempt++ < 200) {
+                setTimeout(tick, 30);
+              } else {
+                reject(new Error('[contextModules] Capacitor ContextModules plugin not ready'));
+              }
+            };
+            tick();
+          });
+        };
+        var unwrap = function (res) { return (res && res.__wrapped) ? res.value : res; }; // 解包安卓插件的原始值信封（含基本类型）
+        // 二进制响应：原生桥无法序列化 byte[]，改传 base64 + __binary 标记，这里解码回 ArrayBuffer
+        var b64ToArrayBuffer = function (b64) {
+          var bin = atob(String(b64));
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          return bytes.buffer;
+        };
+        /* ------------------------------------------------------------------
+           双网络栈互补（安卓特有）
+           原生栈（OkHttp/HttpURLConnection）与 WebView 的浏览器栈是两套独立实现，
+           实测两者能力互补（同一 IP、同一时刻、同一 URL）：
+             · push2 的 /api/qt/stock/get、/api/qt/stock/trends2/get、kline → 原生栈被服务端
+               掐连接（unexpected end of stream），浏览器栈 200 正常
+             · fund.eastmoney.com/*.js、fundgz.1234567.com.cn → 无 CORS 头，浏览器栈读不到，
+               原生栈正常
+           因此策略：**原生优先，仅在原生「传输层失败」时用浏览器栈重试一次**（不是静默降级：
+           原生失败原因由 Log.e 记录，此处也会打 console 日志；两边都失败则回落到与旧实现
+           完全相同的空结果 {}，外部行为不变）。
+           ------------------------------------------------------------------ */
+        var FORBIDDEN_FETCH_HEADERS = ['host', 'referer', 'cookie', 'origin', 'user-agent', 'accept-encoding', 'connection', 'content-length'];
+        var buildUrlWithParams = function (url, searchParams) {
+          if (!searchParams) return url;
+          var qs = Object.keys(searchParams)
+            .filter(function (k) { return searchParams[k] !== undefined && searchParams[k] !== null; })
+            .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(String(searchParams[k])); })
+            .join('&');
+          if (!qs) return url;
+          return url + (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+        };
+        var headersToPlainObject = function (h) {
+          var out = {};
+          if (h && typeof h.forEach === 'function') h.forEach(function (v, k) { out[k] = v; });
+          return out;
+        };
+        // 返回形状与原生桥一致：{ body, headers }
+        var webviewFetch = function (url, config) {
+          var cfg = config || {};
+          var init = { method: cfg.method || 'GET', cache: 'no-store' };
+          if (cfg.headers) {
+            var hs = {};
+            Object.keys(cfg.headers).forEach(function (k) {
+              if (FORBIDDEN_FETCH_HEADERS.indexOf(String(k).toLowerCase()) < 0 && cfg.headers[k] != null) {
+                hs[k] = String(cfg.headers[k]);
+              }
+            });
+            init.headers = hs;
+          }
+          if (cfg.body !== undefined && cfg.body !== null) init.body = cfg.body;
+          return fetch(buildUrlWithParams(url, cfg.searchParams), init).then(function (res) {
+            var headers = headersToPlainObject(res.headers);
+            var type = cfg.responseType || 'text';
+            if (type === 'arraybuffer') {
+              return res.arrayBuffer().then(function (b) { return { body: b, headers: headers }; });
+            }
+            if (type === 'json') {
+              // 与 httpClient.ts 对齐：响应体不是合法 JSON 时给 {}，不抛错
+              return res.json().catch(function () { return {}; }).then(function (b) { return { body: b, headers: headers }; });
+            }
+            return res.text().then(function (t) { return { body: t, headers: headers }; });
+          });
+        };
+        // 安卓端没有桌面原生弹窗：给「安全默认值」而不是 noop，
+        // 否则渲染层 `const { filePath } = await dialog.xxx()` 解构 undefined 会直接抛 TypeError。
+        // response 语义：0=确定（按钮 0），1=取消 —— 默认必须取 1，避免静默执行删除/覆盖类操作。
+        var dismissedBox = function () { return Promise.resolve({ response: 1, checkboxChecked: false }); };
+        var canceledSave = function () { return Promise.resolve({ canceled: true, filePath: undefined }); };
+        var canceledOpen = function () { return Promise.resolve({ canceled: true, filePaths: [] }); };
+        window.contextModules = {
+          request: function (url, config) {
+            return whenReady(function (p) { return p.request({ url: url, config: config }); }).then(function (res) {
+              // 原生栈传输层失败 → 换 WebView 浏览器栈重试一次（见上方「双网络栈互补」说明）
+              if (res && res.__failed) {
+                return webviewFetch(url, config).then(function (r) {
+                  console.warn('[contextModules] 原生栈失败，浏览器栈已重试成功:', url, '| 原生错误:', res.__error);
+                  return r;
+                }).catch(function (e) {
+                  console.error('[contextModules] 原生栈与浏览器栈均失败:', url, '| 原生错误:', res.__error, '| 浏览器错误:', e && e.message);
+                  return {};
+                });
+              }
+              if (res && res.__binary && config && config.responseType === 'arraybuffer') {
+                return { body: b64ToArrayBuffer(res.body), headers: res.headers };
+              }
+              return res;
+            });
+          },
+          process: {
+            production: true,
+            platform: 'android',
+            electron: '-',
+            node: '-',
+            v8: '-',
+            chrome: String((navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1] || '-'),
+            arch: 'arm64',
+            buildDate: String(Date.now()),
+            sandboxed: false,
+          },
+          electron: {
+            shell: { openExternal: function (url) { return whenReady(function (p) { return p.openExternal({ url: url }); }); } },
+            ipcRenderer: { invoke: noop, on: function () { return null; }, removeListener: noop, removeAllListeners: noop },
+            dialog: { showMessageBox: dismissedBox, showSaveDialog: canceledSave, showOpenDialog: canceledOpen },
+            app: {
+              setLoginItemSettings: noop,
+              quit: noop,
+              relaunch: noop,
+              getVersion: function () { return whenReady(function (p) { return p.getVersion(); }).then(unwrap); },
+            },
+            clipboard: {
+              readText: function () { return whenReady(function (p) { return p.readText(); }).then(unwrap); },
+              writeText: function (t) { return whenReady(function (p) { return p.writeText({ value: t }); }); },
+              writeImage: noop,
+            },
+          },
+          io: {
+            saveImage: function (p, d) { return whenReady(function (pl) { return pl.saveImage({ path: p, dataUrl: d }); }); },
+            saveJsonToCsv: function (p, j) { return whenReady(function (pl) { return pl.saveJsonToCsv({ path: p, json: j }); }); },
+            saveString: function (p, c) { return whenReady(function (pl) { return pl.saveString({ path: p, content: c }); }); },
+            readStringFile: function (p) { return whenReady(function (pl) { return pl.readStringFile({ path: p }); }).then(unwrap); },
+            readFile: function (p) { return whenReady(function (pl) { return pl.readFile({ path: p }); }).then(unwrap); },
+          },
+          electronStore: {
+            get: function (type, key, init) { return whenReady(function (p) { return p.storeGet({ type: type, key: key, init: init }); }).then(unwrap); },
+            set: function (type, key, data) { return whenReady(function (p) { return p.storeSet({ type: type, key: key, data: data }); }); },
+            delete: function (type, key) { return whenReady(function (p) { return p.storeDelete({ type: type, key: key }); }); },
+            cover: function (type, data) { return whenReady(function (p) { return p.storeCover({ type: type, value: data }); }); },
+            all: function (type) { return whenReady(function (p) { return p.storeAll({ type: type }); }).then(unwrap); },
+          },
+        };
+        if (!window.process) window.process = window.contextModules.process; // WebView 无 Node 全局 process
+        document.documentElement.classList.add('platform-android'); // 供响应式 CSS 使用
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' data: blob:" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="stylesheet" href="./mobile.css" />
+    <title>Fishing Funds</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+  </body>
+</html>
