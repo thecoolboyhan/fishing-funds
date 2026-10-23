@@ -3,124 +3,64 @@ import dayjs from 'dayjs';
 import request from '@/utils/request';
 import * as Utils from '@/utils';
 
-// CoinCap
-export async function FromCoinCap(keyword: string, codes = '') {
+// Coingecko 市值排行
+// 2026-10 起替代原 CoinCap 排行源：api.coincap.io/v2/assets 已停止服务（连接即失败/502），
+// FromCoinCap 恒返回 []，导致货币排行榜整体为空。
+// /coins/markets 与钱包货币列表同域（api.coingecko.com），实测国内直连可用，
+// 按市值降序返回，字段与排行榜消费契约（code/name/symbol/priceUsd/changePercent24Hr）对齐。
+export async function FromCoingeckoMarkets(keyword = '', ids = '') {
   try {
-    const {
-      body: { data, timestamp },
-    } = await request<{
-      data: [
-        {
-          id: 'tokenclub';
-          rank: '436';
-          symbol: 'TCT';
-          name: 'TokenClub';
-          supply: '817902279.4440348000000000';
-          maxSupply: string | null;
-          marketCapUsd: '25215840.3014434523346795';
-          volumeUsd24Hr: '4750006.2506309048486091';
-          priceUsd: '0.0308298936623380';
-          changePercent24Hr: '-1.5098207890204188';
-          vwap24Hr: '0.0303235253576153';
-          explorer: 'https://etherscan.io/token/0x4824a7b64e3966b0133f4f4ffb1b9d6beb75fff7';
-        }
-      ];
-      timestamp: 1628823350268;
-    }>('https://api.coincap.io/v2/assets', {
+    const { body } = await request<
+      {
+        id: string;
+        symbol: string;
+        name: string;
+        image: string;
+        current_price: number | null;
+        market_cap: number | null;
+        market_cap_rank: number | null;
+        total_volume: number | null;
+        circulating_supply: number | null;
+        max_supply: number | null;
+        price_change_percentage_24h: number | null;
+        last_updated: string;
+      }[]
+    >('https://api.coingecko.com/api/v3/coins/markets', {
       searchParams: {
-        search: keyword,
-        ids: codes,
-        limit: 200,
-        offset: 0,
-      },
-      headers: {
-        'Accept-Encoding': 'gzip',
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 200,
+        page: 1,
+        sparkline: false,
+        ...(ids ? { ids } : {}),
       },
       responseType: 'json',
     });
 
-    return data.map((item) => ({
-      ...item,
-      code: item.id,
-      supply: NP.divide(Number(item.supply), 10 ** 4).toFixed(2),
-      maxSupply: item.maxSupply && NP.divide(Number(item.maxSupply), 10 ** 4).toFixed(2),
-      marketCapUsd: NP.divide(Number(item.marketCapUsd), 10 ** 8).toFixed(2),
-      volumeUsd24Hr: NP.divide(Number(item.volumeUsd24Hr), 10 ** 8).toFixed(2),
-      priceUsd: Number(item.priceUsd).toFixed(2),
-      vwap24Hr: Number(item.vwap24Hr).toFixed(2),
-      changePercent24Hr: Number(item.changePercent24Hr).toFixed(2),
-      updateTime: dayjs(timestamp).format('MM-DD HH:mm'),
-    }));
-  } catch (error) {
-    return [];
-  }
-}
-
-export async function GetFromCoinCap(code: string) {
-  try {
-    const {
-      body: { data },
-    } = await request<{
-      data: {
-        id: 'bitcoin';
-        rank: '1';
-        symbol: 'BTC';
-        name: 'Bitcoin';
-        supply: '18784368.0000000000000000';
-        maxSupply: '21000000.0000000000000000';
-        marketCapUsd: '851027620943.5670999354882832';
-        volumeUsd24Hr: '20625637682.6219292545352639';
-        priceUsd: '45305.0973524138315399';
-        changePercent24Hr: '-2.2722114060520030';
-        vwap24Hr: '44881.8715490864544111';
-        explorer: 'https://blockchain.info/';
-      };
-      timestamp: 1628823545124;
-    }>(`https://api.coincap.io/v2/assets/${code}`, {
-      headers: {
-        'Accept-Encoding': 'gzip',
-      },
-      responseType: 'json',
-    });
-    return {
-      ...data,
-      code: data.id,
-      supply: NP.divide(data.supply, 10 ** 4).toFixed(2),
-      maxSupply: data.maxSupply && NP.divide(data.maxSupply, 10 ** 4).toFixed(2),
-      marketCapUsd: NP.divide(data.marketCapUsd, 10 ** 8).toFixed(2),
-      volumeUsd24Hr: NP.divide(data.volumeUsd24Hr, 10 ** 8).toFixed(2),
-      priceUsd: Number(data.priceUsd).toFixed(2),
-      vwap24Hr: Number(data.vwap24Hr).toFixed(2),
-      changePercent24Hr: Number(data.changePercent24Hr).toFixed(2),
-    };
-  } catch (error) {
-    return null;
-  }
-}
-
-export async function GetHistoryFromCoinCap(code: string, interval: string) {
-  // interval m1, m5, m15, m30, h1, h2, h6, h12, d1
-  try {
-    const {
-      body: { data },
-    } = await request<{
-      data: {
-        priceUsd: '10250.7246875711059188';
-        time: 1565913600000;
-        date: '2019-08-16T00:00:00.000Z';
-      }[];
-      timestamp: 1628823545124;
-    }>(`https://api.coincap.io/v2/assets/${code}/history`, {
-      searchParams: { interval },
-      headers: {
-        'Accept-Encoding': 'gzip',
-      },
-      responseType: 'json',
-    });
-    return data.map((item) => ({
-      time: item.time,
-      priceUsd: Number(item.priceUsd).toFixed(2),
-    }));
+    const kw = keyword.trim().toLowerCase();
+    return body
+      .filter((item) => {
+        if (!kw) return true;
+        // /coins/markets 不支持文本搜索，keyword 仅做客户端过滤；精确查询请传 ids
+        return (
+          item.name.toLowerCase().includes(kw) ||
+          item.symbol.toLowerCase().includes(kw) ||
+          item.id.toLowerCase().includes(kw)
+        );
+      })
+      .map((item) => ({
+        ...item,
+        code: item.id,
+        rank: item.market_cap_rank,
+        symbol: item.symbol.toUpperCase(),
+        priceUsd: Number(item.current_price ?? 0).toFixed(2),
+        changePercent24Hr: Number(item.price_change_percentage_24h ?? 0).toFixed(2),
+        marketCapUsd: NP.divide(Number(item.market_cap ?? 0), 10 ** 8).toFixed(2),
+        volumeUsd24Hr: NP.divide(Number(item.total_volume ?? 0), 10 ** 8).toFixed(2),
+        supply: item.circulating_supply != null ? NP.divide(item.circulating_supply, 10 ** 4).toFixed(2) : undefined,
+        maxSupply: item.max_supply != null ? NP.divide(item.max_supply, 10 ** 4).toFixed(2) : undefined,
+        updateTime: dayjs(item.last_updated).format('MM-DD HH:mm'),
+      }));
   } catch (error) {
     return [];
   }
@@ -243,11 +183,12 @@ export async function GetHistoryFromCoingecko(code: string, currency: string, da
       prices: [1629106772337, 47108.05433394351][];
       market_caps: [1629106772337, 47108.05433394351][];
       total_volumes: [1629106772337, 47108.05433394351][];
+    // 注意：不要设置 'Accept-Encoding': 'gzip' —— 服务端会返回 gzip 压缩体，
+    // 而本项目的 HTTP 客户端（undici request）不做自动解压，body.json() 解析二进制
+    // 直接抛错并被 catch 静默吞掉，表现为「近期走势」白图（2026-10-23 实测）。
+    // 不设该头时服务端返回明文 JSON，与 simple/price、markets、ohlc 等端点行为一致。
     }>(`https://api.coingecko.com/api/v3/coins/${code}/market_chart`, {
       searchParams: { vs_currency: currency, days },
-      headers: {
-        'Accept-Encoding': 'gzip',
-      },
       responseType: 'json',
     });
     return {

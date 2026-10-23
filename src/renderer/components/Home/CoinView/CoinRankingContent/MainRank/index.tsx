@@ -63,10 +63,10 @@ const MainRank: React.FC<PropsWithChildren<MainRankProps>> = () => {
     },
   ];
 
-  const { data = [], run: runCoinFromCoinCap, loading } = useRequest(() => Services.Coin.FromCoinCap('', ''));
+  const { data = [], run: runCoinMarkets, loading } = useRequest(() => Services.Coin.FromCoingeckoMarkets());
 
   return (
-    <ChartCard auto onFresh={runCoinFromCoinCap}>
+    <ChartCard auto onFresh={runCoinMarkets}>
       <div className={styles.content}>
         <Table
           rowKey="code"

@@ -141,6 +141,7 @@ cd android && ./gradlew assembleDebug     # 需 JDK 17 + ANDROID_HOME
 | 安卓 | 原生弹窗 / 文件选择器是安全默认值（一律按「取消」），因此**删除自选、导出 CSV/JSON、备份导入导出不生效** |
 | 安卓 | 新闻「查看原文」依赖桌面 `<webview>` 标签，暂不可用 |
 | 通用 | 货币接口（`api.coingecko.com`）在受限网络下需要代理（见下节） |
+| 通用 | 货币排行榜自 2026-10 起改用 Coingecko `/coins/markets`（原 CoinCap v2 API 停止服务）；Coingecko 公共接口有频率限制，遇 429 时排行榜会偶发为空，手动刷新即可恢复 |
 | 通用 | 未做 release 混淆（`minifyEnabled false`），APK 体积约 4.4 MB |
 
 ## 系统代理
@@ -151,8 +152,9 @@ cd android && ./gradlew assembleDebug     # 需 JDK 17 + ANDROID_HOME
 
 ```
 api.coingecko.com
-api.coincap.io
 ```
+
+> 2026-10 起货币排行榜数据源由 CoinCap 切换为 Coingecko `/coins/markets`（CoinCap v2 API 已停止服务，连接即失败），货币模块现统一走 Coingecko 一个域。
 
 ## AI 识别录入
 
