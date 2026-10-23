@@ -58,7 +58,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
+          PHANTOMJS_SKIP_DOWNLOAD=true npm install --no-audit --no-fund
           node node_modules/electron/install.js
       - name: Build renderer + main
         run: npm run build
@@ -82,7 +82,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
+          PHANTOMJS_SKIP_DOWNLOAD=true npm install --no-audit --no-fund
           node node_modules/electron/install.js
       - name: Build renderer + main
         run: npm run build
@@ -107,7 +107,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
+          PHANTOMJS_SKIP_DOWNLOAD=true npm install --no-audit --no-fund
           node node_modules/electron/install.js
       - name: Build renderer + main
         run: npm run build
@@ -140,7 +140,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: PHANTOMJS_SKIP_DOWNLOAD=true ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund
       - name: Build web assets
         run: npm run build
       - name: Sync Capacitor
