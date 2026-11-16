@@ -3,6 +3,7 @@ import listenerMiddleware from '@/store/listeners';
 import coinReducer, { CoinState } from '@/store/features/coin';
 import fundReducer, { FundState } from '@/store/features/fund';
 import quotationReducer, { QuotationState } from '@/store/features/quotation';
+import priceReducer, { PriceState } from '@/store/features/price';
 import settingReducer, { SettingState } from '@/store/features/setting';
 import sortReducer, { SortState } from '@/store/features/sort';
 import stockReducer, { StockState } from '@/store/features/stock';
@@ -26,6 +27,7 @@ const store = configureStore({
     coin: coinReducer,
     fund: fundReducer,
     quotation: quotationReducer,
+    price: priceReducer,
     setting: settingReducer,
     sort: sortReducer,
     stock: stockReducer,
@@ -48,6 +50,7 @@ export type StoreState = {
   fund: FundState;
   zindex: ZindexState;
   quotation: QuotationState;
+  price: PriceState;
   stock: StockState;
   setting: SettingState;
   sort: SortState;

@@ -24,6 +24,7 @@ import {
   sortCoinsCachedAction,
   setRemoteCoinsAction,
 } from '@/store/features/coin';
+import { setPricesLoadingAction, syncPricesAction } from '@/store/features/price';
 import { updateStockAction, sortStocksCachedAction, setStocksLoadingAction } from '@/store/features/stock';
 import { setZindexesLoadingAction, sortZindexsCachedAction } from '@/store/features/zindex';
 import { sortQuotationsCachedAction } from '@/store/features/quotation';
@@ -555,6 +556,37 @@ export function useLoadCoins(config?: {
   };
   const fn = useTabsFreshFn(Enums.TabKeyType.Coin, load);
   return fn;
+}
+
+/**
+ * 现价看板取数（汇率/贵金属/工业金属/数字货币）。
+ * 与货币自选列表（useLoadCoins）并行存在、互不影响：前者只看现价，后者是加密币自选。
+ */
+export function useLoadPrices(config?: {
+  enableLoading?: boolean; // 是否开启刷新loading
+}) {
+  const dispatch = useAppDispatch();
+
+  const load = async () => {
+    try {
+      dispatch(setPricesLoadingAction(!!config?.enableLoading));
+      const items = await Services.Price.GetPrices();
+      dispatch(syncPricesAction({ items, updateTime: dayjs().format('MM-DD HH:mm:ss') }));
+    } finally {
+      dispatch(setPricesLoadingAction(false));
+    }
+  };
+  const fn = useTabsFreshFn(Enums.TabKeyType.Coin, load);
+  return fn;
+}
+
+export function useFreshPrices() {
+  const loadPrices = useLoadPrices({
+    enableLoading: true,
+  });
+  const { run: runLoadPrices } = useThrottleFn(loadPrices, { wait: CONST.DEFAULT.FRESH_BUTTON_THROTTLE_DELAY });
+  const freshPrices = useScrollToTop({ after: runLoadPrices });
+  return freshPrices;
 }
 
 export function useLoadRemoteCoins() {

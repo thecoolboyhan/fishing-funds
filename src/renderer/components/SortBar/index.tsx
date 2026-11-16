@@ -12,6 +12,7 @@ import {
   RiLayout4Line,
   RiLineChartLine,
   RiSearchLine,
+  RiRefreshLine,
 } from 'react-icons/ri';
 import {
   setFundSortModeAction,
@@ -22,20 +23,23 @@ import {
   troggleQuotationSortOrderAction,
   setStockSortModeAction,
   troggleStockSortOrderAction,
-  setCoinSortModeAction,
-  troggleCoinSortOrderAction,
   setFundViewModeAction,
   setZindexViewModeAction,
   setQuotationViewModeAction,
   setStockViewModeAction,
-  setCoinViewModeAction,
 } from '@/store/features/sort';
 import CustomDrawer from '@/components/CustomDrawer';
 import { toggleAllZindexsCollapseAction } from '@/store/features/zindex';
 import { toggleAllQuotationsCollapseAction } from '@/store/features/quotation';
-import { toggleAllCoinsCollapseAction } from '@/store/features/coin';
 import { toggleAllFundsCollapseAction, toggleAllStocksCollapseAction } from '@/store/features/wallet';
-import { useFreshFunds, useFreshZindexs, useFreshStocks, useFreshCoins, useAppDispatch, useAppSelector } from '@/utils/hooks';
+import {
+  useFreshFunds,
+  useFreshZindexs,
+  useFreshStocks,
+  useFreshPrices,
+  useAppDispatch,
+  useAppSelector,
+} from '@/utils/hooks';
 import * as Enums from '@/utils/enums';
 import * as Helpers from '@/helpers';
 import styles from './index.module.css';
@@ -45,14 +49,11 @@ const AddFundContent = React.lazy(() => import('@/components/Home/FundView/AddFu
 const ManageStockContent = React.lazy(() => import('@/components/Home/StockView/ManageStockContent'));
 const FundStatisticsContent = React.lazy(() => import('@/components/Home/FundView/FundStatisticsContent'));
 const AddStockContent = React.lazy(() => import('@/components/Home/StockView/AddStockContent'));
-const ManageCoinContent = React.lazy(() => import('@/components/Home/CoinView/ManageCoinContent'));
-const AddCoinContent = React.lazy(() => import('@/components/Home/CoinView/AddCoinContent'));
 const ManageZindexContent = React.lazy(() => import('@/components/Home/ZindexView/ManageZindexContent'));
 const AddZindexContent = React.lazy(() => import('@/components/Home/ZindexView/AddZindexContent'));
 const FundFlowContent = React.lazy(() => import('@/components/Home/QuotationView/FundFlowContent'));
 const NewsContent = React.lazy(() => import('@/components/Home/NewsList/NewsContent'));
 const StockRankingContent = React.lazy(() => import('@/components/Home/StockView/StockRankingContent'));
-const CoinRankingContent = React.lazy(() => import('@/components/Home/CoinView/CoinRankingContent'));
 const FundRankingContent = React.lazy(() => import('@/components/Home/FundView/FundRankingContent'));
 
 export interface SortBarProps {}
@@ -506,117 +507,21 @@ function StockSortBar() {
 }
 
 function CoinSortBar() {
-  const dispatch = useAppDispatch();
-
-  const {
-    coinSortMode: { type: coinSortType, order: coinSortOrder },
-  } = useAppSelector((state) => state.sort.sortMode);
-
-  const {
-    coinViewMode: { type: coinViewType },
-  } = useAppSelector((state) => state.sort.viewMode);
-
-  const { coinSortModeOptions, coinSortModeOptionsMap } = Helpers.Sort.GetSortConfig();
-
-  const coins = useAppSelector((state) => state.coin.coins);
-
-  const [showManageCoinDrawer, { setTrue: openManageCoinDrawer, setFalse: closeManageCoinDrawer }] = useBoolean(false);
-  const [showAddCoinDrawer, { setTrue: openAddCoinDrawer, setFalse: closeAddCoinDrawer }] = useBoolean(false);
-  const [showCoinRankingDrawer, { setTrue: openCoinRankingDrawer, setFalse: closeCoinRankingDrawer }] = useBoolean(false);
-
-  const expandAllCoins = coins.every((_) => _.collapse);
-
-  const freshCoins = useFreshCoins();
-
-  const toggleCoinsCollapse = () => dispatch(toggleAllCoinsCollapseAction());
+  // 2026-11-16：货币 tab 改为现价看板，原自选/榜单/管理/折叠/排序控件全部下线，
+  // 只保留刷新（品类顺序由 services/price.ts 的 Spec.sort 固定，不需要用户排序）。
+  const loading = useAppSelector((state) => state.price.loading);
+  const updateTime = useAppSelector((state) => state.price.updateTime);
+  const freshPrices = useFreshPrices();
 
   return (
     <div className={styles.bar}>
-      <div className={styles.arrow} onClick={toggleCoinsCollapse}>
-        {expandAllCoins ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
+      <div className={styles.name}>
+        <span>现价行情</span>
       </div>
-      <div className={styles.name} onClick={toggleCoinsCollapse}>
-        <span>货币名称</span>
-        <a
-          onClick={(e) => {
-            openManageCoinDrawer();
-            e.stopPropagation();
-          }}
-        >
-          管理
-        </a>
-        <a
-          onClick={(e) => {
-            openCoinRankingDrawer();
-            e.stopPropagation();
-          }}
-        >
-          榜单
-        </a>
-        <div className={styles.view}>
-          <RiSearchLine
-            onClick={(e) => {
-              openAddCoinDrawer();
-              e.stopPropagation();
-            }}
-          />
-        </div>
+      <div className={styles.fresh} onClick={freshPrices}>
+        <RiRefreshLine className={clsx({ [styles.rotating]: loading })} />
+        <span>{loading ? '刷新中' : updateTime || '刷新'}</span>
       </div>
-      <div className={styles.view}>
-        {coinViewType === Enums.CoinViewType.List && (
-          <RiListUnordered onClick={() => dispatch(setCoinViewModeAction({ type: Enums.CoinViewType.Grid }))} />
-        )}
-        {coinViewType === Enums.CoinViewType.Grid && (
-          <RiDashboardLine onClick={() => dispatch(setCoinViewModeAction({ type: Enums.CoinViewType.List }))} />
-        )}
-      </div>
-      <div className={styles.mode}>
-        <Dropdown
-          placement="bottomRight"
-          popupRender={() => (
-            <Menu
-              selectedKeys={[String(coinSortModeOptionsMap[coinSortType].key)]}
-              onClick={({ key }) => dispatch(setCoinSortModeAction({ type: Number(key) as Enums.CoinSortType }))}
-              items={coinSortModeOptions}
-            />
-          )}
-        >
-          <a>{coinSortModeOptionsMap[coinSortType].label}</a>
-        </Dropdown>
-      </div>
-      <div className={styles.sort} onClick={() => dispatch(troggleCoinSortOrderAction())}>
-        <RiArrowUpSFill
-          className={clsx({
-            [styles.selectOrder]: coinSortOrder === Enums.SortOrderType.Asc,
-          })}
-        />
-        <RiArrowDownSFill
-          className={clsx({
-            [styles.selectOrder]: coinSortOrder === Enums.SortOrderType.Desc,
-          })}
-        />
-      </div>
-      <CustomDrawer show={showManageCoinDrawer}>
-        <ManageCoinContent
-          onClose={closeManageCoinDrawer}
-          onEnter={() => {
-            freshCoins();
-            closeManageCoinDrawer();
-          }}
-        />
-      </CustomDrawer>
-      <CustomDrawer show={showAddCoinDrawer}>
-        <AddCoinContent
-          onClose={closeAddCoinDrawer}
-          onEnter={() => {
-            freshCoins();
-            closeAddCoinDrawer();
-          }}
-        />
-      </CustomDrawer>
-      <CustomDrawer show={showCoinRankingDrawer}>
-        <CoinRankingContent onClose={closeCoinRankingDrawer} onEnter={closeCoinRankingDrawer} />
-      </CustomDrawer>
     </div>
   );
 }

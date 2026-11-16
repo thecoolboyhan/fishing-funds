@@ -25,6 +25,7 @@ import {
   useAppDispatch,
   useAppSelector,
   useLoadCoins,
+  useLoadPrices,
   useLoadRemoteCoins,
   useLoadRemoteFunds,
   useLoadFundRatingMap,
@@ -394,6 +395,9 @@ export function useBootStrap() {
     enableLoading: false,
     autoFilter: false,
   });
+  const runLoadPrices = useLoadPrices({
+    enableLoading: false,
+  });
 
   // 间隔时间刷新远程基金数据,远程货币数据,基金评级
   useInterval(() => {
@@ -420,10 +424,10 @@ export function useBootStrap() {
     }
   }, 1000 * 60 * 10);
 
-  // 间隔时间刷新货币
+  // 间隔时间刷新货币（自选）与现价看板
   useInterval(() => {
     if (autoFreshSetting) {
-      Adapters.ChokeAllAdapter([runLoadCoins]);
+      Adapters.ChokeAllAdapter([runLoadCoins, runLoadPrices]);
     }
   }, freshDelaySetting * 1000 * 60);
 
@@ -433,7 +437,7 @@ export function useBootStrap() {
       () => Adapters.ChokeAllAdapter([runLoadRemoteFunds, runLoadRemoteCoins, runLoadFundRatingMap]),
       () => Adapters.ChokeAllAdapter([runLoadWalletsFunds, runLoadFixWalletsFunds]),
       () => Adapters.ChokeAllAdapter([runLoadWalletsStocks]),
-      () => Adapters.ChokeAllAdapter([runLoadZindexs, runLoadQuotations, runLoadCoins]),
+      () => Adapters.ChokeAllAdapter([runLoadZindexs, runLoadQuotations, runLoadCoins, runLoadPrices]),
     ]);
   }, []);
 }

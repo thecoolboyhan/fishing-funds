@@ -168,6 +168,7 @@ function StockGroup() {
 }
 
 function CoinGroup() {
+  // 2026-11-16：货币 tab 改为「现价看板」，子 tab 按品类分组（原为上涨/下跌筛选）
   return (
     <GroupTab
       tabKey={Enums.TabKeyType.Coin}
@@ -175,17 +176,22 @@ function CoinGroup() {
         {
           key: String(0),
           label: '全部',
-          children: <CoinView filter={() => true} />,
+          children: <CoinView category="all" />,
         },
         {
           key: String(1),
-          label: '上涨',
-          children: <CoinView filter={(coin) => Number(coin.change24h) >= 0} />,
+          label: '贵金属',
+          children: <CoinView category="precious" />,
         },
         {
           key: String(2),
-          label: '下跌',
-          children: <CoinView filter={(coin) => Number(coin.change24h) < 0} />,
+          label: '工业金属',
+          children: <CoinView category="base" />,
+        },
+        {
+          key: String(3),
+          label: '外汇·BTC',
+          children: <CoinView category={['currency', 'crypto']} />,
         },
       ]}
     />

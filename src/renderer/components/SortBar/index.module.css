@@ -80,6 +80,39 @@
   padding-right: 6px;
 }
 
+/* 现价看板刷新区（替代原货币自选的排序/折叠控件） */
+.fresh {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  color: var(--secondary-main-text-color);
+  cursor: pointer;
+  white-space: nowrap;
+
+  svg {
+    height: 13px;
+    width: 13px;
+  }
+
+  &:hover {
+    color: var(--main-text-color);
+  }
+}
+
+.rotating {
+  animation: coin-fresh-rotate 1s linear infinite;
+}
+
+@keyframes coin-fresh-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .sort {
   cursor: pointer;
   display: flex;
