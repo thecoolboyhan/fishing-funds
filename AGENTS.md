@@ -88,7 +88,8 @@ fishing-funds/
 │       ├── services/        # ★ 数据抓取层（最频繁的维护点）
 │       │   ├── fund.ts       # 基金估值/净值
 │       │   ├── stock.ts      # A股/港股/美股
-│       │   ├── coin.ts       # 虚拟货币
+│       │   ├── coin.ts       # 虚拟货币（加密币自选，v0.3.0 起不再用于主列表）
+│       │   ├── price.ts      # ★ 现价看板（汇率/贵金属/工业金属/数字货币，v0.3.0 新增）
 │       │   ├── quotation.ts  # 实时报价
 │       │   ├── zindex.ts     # 指数
 │       │   ├── exchange.ts   # 汇率
@@ -259,6 +260,10 @@ cd android && ./gradlew assembleDebug   # 产 app-debug.apk（需 JDK17 + ANDROI
   `window.open` 外链 / `navigator.clipboard` / 读 `navigator.userAgent` 判断平台**——违反铁律 2，必须走
   `contextModules` 桥。（唯一例外：`index.html` 的 inline 桥**自身**实现里可以用 `fetch`，
   因为那正是「平台差异层」，安卓的浏览器栈重试就靠它。）
+- ❌ **不要把「持有金额 / 总资产」改回「上一净值 / 昨收」基准**（2026-10-27 已统一为**实时市值**，见 §9.6）：
+  `CalcFund.cyje` 必须用 `gsz*cyfe`、`CalcStock.cyje` 必须用 `priceForCalc*cyfe`，汇总 `zje` 取 `cyje`。
+  旧写法会让 **股票** `持有金额 − 持有收益 ≠ 成本金额`（差额恰为当日收益），并让顶部「持有收益率」与明细页对不上；
+  这是「金额看起来算错了」的历史真凶，别再改回去。
 
 ### 数据源失效时的第一动作
 
@@ -391,12 +396,114 @@ git push --force origin "$C:$REF"                 # 快照分支无有效历史�
 - Coingecko 公共接口有频率限制，遇 429 时排行榜偶发为空，手动刷新即恢复。
 
 ### 9.5 发版前待确认
-- `android/app/build.gradle` 的 `versionCode` / `versionName` 当前为 `1` / `0.1.0`（落后于 §8 记录的 fork.1 状态），发版前须 bump（建议 `versionCode 3` / `versionName "0.2.0"`）。
+- `android/app/build.gradle` 的 `versionCode` / `versionName` 已于 v0.3.0 bump 至 `4` / `0.3.0`；下次发版记得同步递增（两处 `package.json` 也要同步，见 §10.4）。
 - 安卓 release 签名密钥（`android/keystore.properties` + `.jks`）只在打包机本地，**未入库**；CI 无密钥时 `assembleRelease` 出**未签名** APK（无法安装）。要发可升级的签名包，要么把 keystore 以 GitHub Secret 注入 CI，要么在打包机本地 `assembleRelease` 后手动上传 APK。
+
+### 9.6 金额口径统一为「实时市值」（2026-10-27 改动，2026-11-16 随 v0.3.0 提交 `2658579`）
+
+**背景**：用户反馈「金额计算不对」。排查结论——
+- `CalcFund/CalcFunds/CalcStock/CalcStocks/CalcWallet` 的公式与官方 v8.7.1 **逐行一致**（fork 仅加了新浪源分发），
+  新浪 `fu_` 源的字段映射亦已用真实数据核对无误（`gsz`=估算净值、`dwjz`=单位净值、`gszzl`=估算涨幅%）。
+- 问题出在**价格基准不统一**：`持有金额` 用 `fund.dwjz`（上一净值）/ `stock.zs`（昨收），
+  而 `持有收益`（股票）用最新价、`gszz` 用估算净值 → **股票** `持有金额 − 持有收益 ≠ 成本金额`（差额恰为当日收益）；
+  `CalcWallet` 顶部 `持有收益率 = cysy/(zje-cysy)` 的分母也因此不等于成本金额。
+
+**改动**（3 文件，均在 `src/renderer/helpers/`）：
+1. `fund.ts` `CalcFund`：`cyje = gsz*cyfe`；`cysy/cysyl` 改用 `gsz`；`gscysyl` 去掉多余的 `+gszzl`
+   （新口径下会把当日涨跌重复计入）。
+2. `stock.ts` `CalcStock`：`cyje = priceForCalc*cyfe`（最新价×份额）。
+3. `fund.ts` / `stock.ts` 的 `CalcFunds` / `CalcStocks`：汇总 `zje` 改用算好的 `cyje`。
+4. `wallet.ts` `CalcWallet`：`cysyl` 分母改用成本金额 `cbje`。
+
+**结果**：全链路恒等式 `持有金额 − 持有收益 === 成本金额` 成立，顶部与明细口径一致（真实数据已核算）。
+「今日收益」口径未改，仍为 `(估算净值 − 上一净值)` / `(最新价 − 昨收)`。
+
+**影响面**：钱包顶部「持有金额」、基金统计「总资产(元)」、「资产结构」等凡用 `cyje`/`zje` 处，
+现值均随估算净值/最新价实时变动（盘中与支付宝口径对齐，不再滞后一天）。
+
+**状态**：`npm run build` 通过（exit 0）；已随 v0.3.0 提交（`2658579`，该提交同时修掉 `cbje` 未返回的 bug）。
 
 ---
 
-_最后更新：2026-10-23（新增 §9 v0.2.0 变更记录：新浪基金估值源、Referer 修复、打包版本号修复、货币源切 Coingecko；
+## 10. v0.3.0 变更（2026-11-16，`android-capacitor` 分支，tag `v0.3.0`）
+
+### 10.1 货币模块 → 现价看板
+
+**需求**：原「货币」tab 只有加密币自选，看不到比特币与黄金现价。改为**专看现价**的看板：
+美元兑人民币、比特币、金/银/铜/铁、主要贵金属。
+
+**新增文件**（旧 `services/coin.ts`、`store/features/coin.ts`、`CoinRow`/`Calculator`/`ManageCoin`/
+`DetailCoinContent`/`CoinRankingContent` 等**全部保留未删**，应用中心的「货币管理/计算器/榜单」入口仍可用）：
+
+| 文件 | 作用 |
+|---|---|
+| `services/price.ts` | ★ 现价数据源聚合 + 分类分组 `GroupPrices` |
+| `typings/price.d.ts` | `Price.Item` 契约（含 `digits` 精度、`originText` 原始美元报价） |
+| `store/features/price.ts` | `price` slice：items / loading / updateTime / empty |
+| `components/Home/CoinView/index.tsx` | 重写为分类看板（原加密币列表逻辑移除） |
+| `components/Home/CoinView/index.module.css` | 卡片网格样式（全部用主题变量，浅/深色自适应） |
+
+**改动文件**：`services/index.ts`、`store/index.ts`、`utils/hooks/utils.ts`（`useLoadPrices`/`useFreshPrices`）、
+`utils/hooks/system.ts`（首屏 + `freshDelaySetting` 定时刷新接入）、`components/Home/index.tsx`（`CoinGroup` 子 tab）、
+`components/SortBar/index.tsx`（货币分支只留标题+刷新，删除自选/榜单/管理/折叠/排序控件）。
+
+**子 tab**：`全部` / `贵金属` / `工业金属` / `外汇·BTC`（原为 全部/上涨/下跌）。
+
+### 10.2 数据源与字段映射（★ 改这里之前必读）
+
+全部走新浪 + CoinGecko，**无 API Key**；四个请求并发，单组失败只影响该组（各 fetch 内部吞异常返回空）。
+
+| 源 | 端点 | 需要 | 字段映射（已用真实响应逐条核对） |
+|---|---|---|---|
+| 外盘 | `hq.sinajs.cn/list=hf_*` | Referer | 0=现价 4=最高 5=最低 6=时间 7=**昨收** 8=开盘 12=日期 |
+| 内盘 | `hq.sinajs.cn/list=nf_*` | Referer | 2=开 3=高 4=低 8=**最新价** 10=**昨结算**（涨跌基准）17=日期 |
+| 外汇 | `hq.sinajs.cn/list=fx_s*` | Referer | 3=昨收 5=开 6=高 7=低 8=**现价** 10=涨跌幅% 11=涨跌额 |
+| 加密 | `api.coingecko.com/api/v3/simple/price` | 无 | 复用 `services/coin.ts` 的 `FromCoingecko` |
+
+- **必须带 `Referer: https://finance.sina.com.cn`**（否则 403），返回 **GBK**，用 `arraybuffer` + `TextDecoder('gbk')` 解码（与 `fund.ts` 的 `FromSina` 同一套）。
+- 一次请求可带多个代码，返回多行 `var hq_str_xxx="...";`；**空串代表无行情**（实测 `hf_PB` 伦铅为空），直接跳过。
+- 品种表是 `services/price.ts` 顶部的 `FX_SPEC`/`HF_SPEC`/`NF_SPEC`/`CRYPTO_SPEC`，**加品种只改这里**（含 `digits` 小数位与组内 `sort`）。
+- **计价单位统一人民币**（2026-11-16 二次调整）：`GetPrices()` 末尾统一调 `ConvertToCny()`，
+  美元计价品种的主价格全部换算 —— 金/银/铂/钯 `× USDCNY ÷ 31.1034768`（→元/克）、
+  铜/锌/镍/锡 `× USDCNY`（→元/吨）、BTC/ETH `× USDCNY`（→元，小数位归零）；
+  原始美元报价写进 `originText` 作副标题（如 `$3883.55/盎司`）。基准取 `fx_susdcny` 在岸价，
+  **取不到汇率就整体跳过转换**（保留美元口径，不显示半截数据）。汇率与内盘本身是人民币口径，跳过。
+
+**实测校验**（2026-11-16 10:19）：汇率「现价 − 涨跌额 = 昨收」成立；外盘/内盘所有品种「最高 ≥ 现价 ≥ 最低」成立；
+伦敦金折 **833.40 元/克** vs 沪金 **838.4 元/克**（价差 0.6%，符合内外盘溢价）—— 折算链路正确。
+
+### 10.3 顺手修掉的真 bug：`cbje` 未返回
+
+§9.6 的「持有收益率分母改用成本金额」补丁引用了 `calcFundResult.cbje` / `calcStockResult.cbje`，
+但 `CalcFunds` / `CalcStocks` **内部算完 `cbje` 却没 return**（`return { zje, ..., cysyl }`）→
+取到 `undefined` → `NP.plus(undefined || 0, ...)` 恒为 0 → **持有收益率恒等于 0**。
+已在这两个函数的返回对象补上 `cbje`。`tsc` 原本就报 `TS2339: Property 'cbje' does not exist`，现修复。
+
+### 10.4 状态与遗留
+
+- `npx tsc --noEmit`：本次新增代码**零错误**；剩余 4 条为**既存**问题（SortBar 中基金/指数/板块/股票的 antd `Menu.items` 类型、`hxc3-indicator-formula` 缺声明、`WebViewerDrawer` 的 Event 类型），与本次改动无关。
+- `npm run build` 通过；`npx electron-builder --mac dmg:arm64 -p never` 产出 `release/build/Fishing Funds-0.3.0-arm64.dmg`（119MB），已实测挂载启动、进程存活、无崩溃。
+- **版本号必须改两处**（§9.3 已记，本次又踩一次）：根 `package.json` 与 **`release/app/package.json`**。
+  后者才是 electron-builder 实际读的（`directories.app = release/app`），只改根会导致产物仍叫旧版本号。
+- 打包时 `mac.target.arch` 配的是 `[x64, arm64]`，命令行加 `--arm64` **不会**收窄（仍会打两个），
+  要只打一个架构用 `electron-builder --mac dmg:arm64`（platform:arch 语法）。
+- 无签名证书 → electron-builder 跳过签名，产物为 Electron 自带的 linker-signed ad-hoc 签名
+  （可执行，但 `Info.plist=not bound`）。本地构建物无 `com.apple.quarantine`，双击可直接开。
+- **UI 未做真机截图验证**：`screencapture` 在沙箱无权限；`npx electron-vite dev` 需先
+  `env -u ELECTRON_RUN_AS_NODE`（本机该变量为 1，会让 Electron 退化成纯 Node）。
+- 已提交：`2658579`（金额口径 + cbje 修复）、`6fad53e`（现价看板）、`99c7c80`（bump 0.3.0）。
+- 本轮实打实的排期坑（都已写进上一条）：版本号改两处、`--arm64` 收不窄架构。
+
+---
+
+_最后更新：2026-11-16（新增 §10：货币模块改为「现价看板」——汇率/贵金属/工业金属/数字货币，
+独立数据层 `services/price.ts` + 全品类人民币计价；顺手修复 `CalcFunds`/`CalcStocks` 未返回
+`cbje` 导致持有收益率恒为 0 的 bug。**已提交并发版 v0.3.0。**）_
+
+_历史：2026-10-27（新增 §9.6：金额口径统一为「实时市值」，修掉股票「持有金额/持有收益」价格基准
+不一致与顶部持有收益率分母问题；§7 红线同步新增一条。）_
+
+_历史：2026-10-23（新增 §9 v0.2.0 变更记录：新浪基金估值源、Referer 修复、打包版本号修复、货币源切 Coingecko；
 并补充安卓 `versionCode/versionName` 待 bump 与签名密钥说明。其余分支保留上游完整历史。）_
 
 _历史：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
