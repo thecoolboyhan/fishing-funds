@@ -85,12 +85,15 @@ export function CalcFund(fund: Fund.ResponseItem & Fund.FixData, codeMap: Fund.C
   const bjz = NP.minus(gsz!, fund.dwjz!) || 0;
   const jrsygz = NP.times(cyfe, bjz);
   const gszz = NP.times(gsz!, cyfe);
-  const cyje = NP.times(fund.dwjz!, cyfe);
+  // ★ 口径统一（本地维护改动）：持有金额/持有收益一律按「实时估算净值 gsz」计算，
+  // 与 gszz / 今日收益同基准，cyje - cysy === cbje 恒成立（旧实现用 fund.dwjz 上一净值）。
+  const cyje = NP.times(gsz!, cyfe);
   const cbje = cbj && NP.times(cbj, cyfe);
-  const cysyl = cbj && NP.divide(NP.minus(dwjz, cbj), cbj, 0.01);
-  const cysy = cbj && NP.times(NP.minus(dwjz, cbj), cyfe);
+  const cysyl = cbj && NP.divide(NP.minus(gsz!, cbj), cbj, 0.01);
+  const cysy = cbj && NP.times(NP.minus(gsz!, cbj), cyfe);
   const gszzl = isFix ? fund.fixZzl : fund.gszzl; // 估算收益率
-  const gscysyl = cbj && cbj > 0 ? (isFix ? cysyl?.toFixed(2) : (Number(cysyl) + Number(gszzl)).toFixed(2)) : '';
+  // cysyl 本身已是估算口径，不再叠加 gszzl（旧写法在估算净值口径下会重复计入当日涨跌）
+  const gscysyl = cbj && cbj > 0 ? cysyl?.toFixed(2) : '';
   // cyfe: number; // 持有份额
   // bjz: number; // 比较值
   // jrsygz: number; // 今日收益估值
@@ -121,12 +124,12 @@ export function CalcFunds(funds: Fund.ResponseItem[] = [], codeMap: Fund.CodeMap
   const [zje, gszje, sygz, cysy, cbje] = funds.reduce(
     ([a, b, c, d, e], fund) => {
       const calcFundResult = CalcFund(fund, codeMap);
-      const { bjz, gsz, cysy, cbje } = calcFundResult; // 比较值（估算值 - 持有净值）
+      const { bjz, gsz, cyje, cysy, cbje } = calcFundResult; // 比较值（估算值 - 持有净值）
       const cyfe = codeMap[fund.fundcode!]?.cyfe || 0; // 持有份额
       const jrsygz = NP.times(cyfe, bjz); // 今日收益估值（持有份额 * 比较值）
       const gszz = NP.times(gsz, cyfe); // 估算总值 (持有份额 * 估算值)
-      const dwje = NP.times(fund.dwjz!, cyfe); // 当前金额 (持有份额 * 当前净值)
-      return [a + dwje, b + gszz, c + jrsygz, d + (cysy || 0), e + (cbje || 0)];
+      // ★ 当前金额 == 持有金额(实时估算市值)。旧实现用 fund.dwjz（上一净值），与收益/估值不同基准，已统一。
+      return [a + (cyje || 0), b + gszz, c + jrsygz, d + (cysy || 0), e + (cbje || 0)];
     },
     [0, 0, 0, 0, 0]
   );
@@ -138,7 +141,7 @@ export function CalcFunds(funds: Fund.ResponseItem[] = [], codeMap: Fund.CodeMap
   // gssyl: number; // 估算总收益率
   // cysy:number; // 持有收益
   // cysyl:number; // 持有收益率
-  return { zje, gszje, sygz, gssyl, cysy, cysyl };
+  return { zje, gszje, sygz, gssyl, cysy, cysyl, cbje };
 }
 
 export function CalcWalletsFund(fund: Fund.ResponseItem & Fund.FixData, codeMaps: Fund.CodeMap[]) {

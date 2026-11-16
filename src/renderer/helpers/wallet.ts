@@ -33,7 +33,10 @@ export function CalcWallet(option: { wallets: Wallet.StateItem[]; walletConfig: 
   const gszje = NP.plus(calcFundResult.gszje || 0, calcStockResult.gszje || 0);
   const gssyl = zje ? NP.times(NP.divide(sygz, zje), 100) : 0;
   const cysy = NP.plus(calcFundResult.cysy || 0, calcStockResult.cysy || 0);
-  const cysyl = zje ? NP.times(NP.divide(cysy, zje - cysy), 100) : 0;
+  // ★ 分母改用成本金额（与明细/统计页 cysy/cbje 口径一致）。旧写法 zje-cysy 在「金额」与
+  // 「收益」价格基准不一致时不等于成本金额，会导致顶部持有收益率偏差。
+  const cbje = NP.plus(calcFundResult.cbje || 0, calcStockResult.cbje || 0);
+  const cysyl = cbje ? NP.times(NP.divide(cysy, cbje), 100) : 0;
 
   return {
     zje, // 总金额
