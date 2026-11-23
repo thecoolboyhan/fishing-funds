@@ -647,7 +647,8 @@ docs: 更新 AGENTS/README/博客介绍到 v0.3.5
 >
 > **提交结果（2026-11-23 15:09）**：`fbc3945`（79 文件），已 push `android-capacitor`；
 > annotated tag `v0.3.5` 已 push，触发 CI `Build Release (All Platforms)`
-> （mac dmg / win nsis / linux AppImage / android apk，四端产物上传 GitHub Release draft）。
+> （mac dmg / win nsis / linux AppImage / android apk；四端产物先上传 Release draft，
+> 后于 15:23 正式发布，详见 §10.10.7 末尾「发布状态」）。
 > 博客文章同步提交在 `thecoolboyhan.github.io` 仓库 `c643bcb`。
 > CI run `45129076843` 四端全绿（约 4 分钟），6 个资产已上传：dmg×2（x64/arm64）、
 > AppImage×2、exe、apk。CI 产物比本机兜底包更标准（CI 环境无沙箱，dmg 布局完整）。
@@ -741,7 +742,12 @@ docs: 更新 AGENTS/README/博客介绍到 v0.3.5
   （121MB，标准布局含 `Applications` 软链 + 背景图，CRC VALID，版本 0.3.5，
   app.asar 含 `"usd"` 计价与 `BTC_USDT`）。**这是当前最新交付包**。
 
-**未做 / 遗留**：未提交 git、未推 GitHub Release、未打 Android 包；设置项「动画强度」开关仍未做。
+**发布状态（2026-11-23 15:23 更新）**：已提交 git（`fbc3945`，79 文件）、已推 annotated tag
+`v0.3.5`、CI run `45129076843` 四端全绿并上传 6 个资产；**GitHub Release v0.3.5 已正式发布**
+（`draft: false`，published `2026-11-23T07:23:46Z`，
+URL `https://github.com/thecoolboyhan/fishing-funds/releases/tag/v0.3.5`）。
+发布命令（本机 gh 已认证，须 unset 代理）：`env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy gh release edit v0.3.5 --draft=false --repo thecoolboyhan/fishing-funds`。
+**遗留**：设置项「动画强度」开关仍未做；Android APK 未在本机单独打（CI 已产出并上传）。
 
 ### 10.8 2026-11-20 增量三：Material 3 动效体系
 
