@@ -649,6 +649,8 @@ docs: 更新 AGENTS/README/博客介绍到 v0.3.5
 > annotated tag `v0.3.5` 已 push，触发 CI `Build Release (All Platforms)`
 > （mac dmg / win nsis / linux AppImage / android apk，四端产物上传 GitHub Release draft）。
 > 博客文章同步提交在 `thecoolboyhan.github.io` 仓库 `c643bcb`。
+> CI run `45129076843` 四端全绿（约 4 分钟），6 个资产已上传：dmg×2（x64/arm64）、
+> AppImage×2、exe、apk。CI 产物比本机兜底包更标准（CI 环境无沙箱，dmg 布局完整）。
 
 #### 10.10.1 主题切换后颜色滞后（根治）
 
