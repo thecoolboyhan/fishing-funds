@@ -10,7 +10,7 @@
   background-color: var(--primary-color);
   box-shadow: 0 2px 10px var(--primary-color);
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-primary-color);
   height: 20px;
   width: 20px;
   display: block;

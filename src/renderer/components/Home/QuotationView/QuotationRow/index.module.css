@@ -1,4 +1,8 @@
 .row {
+  animation: md-rise var(--md-dur-mid) var(--md-ease-decelerate) both;
+
+  /* 2026-11-19：等宽数字，避免滚动时涨跌幅/金额抖动 */
+  font-variant-numeric: tabular-nums;
   /* display: flex; */
   width: 100%;
   padding: 8px 8px;
@@ -122,10 +126,10 @@
 }
 
 .favorite {
-  border-radius: 4px;
+  border-radius: var(--md-radius-xs);
   border: 1px solid var(--block-border-color);
   font-size: 8px;
-  color: var(--tag-text-color);
+  color: var(--on-primary-color);
   background-color: var(--primary-color);
   padding: 0 3px;
   text-align: center;

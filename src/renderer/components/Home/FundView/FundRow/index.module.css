@@ -1,4 +1,8 @@
 .row {
+  animation: md-rise var(--md-dur-mid) var(--md-ease-decelerate) both;
+
+  /* 2026-11-19：等宽数字，避免滚动时涨跌幅/金额抖动 */
+  font-variant-numeric: tabular-nums;
   /* display: flex; */
   width: 100%;
   padding: 8px 8px;
@@ -57,7 +61,7 @@
   float: right;
   color: var(--tag-text-color);
   padding: 2px 10px;
-  border-radius: 7px;
+  border-radius: var(--md-radius-sm);
   min-width: 64px;
   margin-left: 5px;
   text-align: center;
@@ -66,8 +70,8 @@
 }
 
 .hold {
-  color: var(--tag-text-color);
-  border-radius: 4px;
+  color: var(--on-primary-color);
+  border-radius: var(--md-radius-xs);
   font-size: 8px;
   background-color: var(--primary-color);
   border: 1px solid var(--block-border-color);
@@ -83,7 +87,7 @@
   background-color: var(--warn-color);
   border: 1px solid var(--block-border-color);
   font-size: 8px;
-  border-radius: 4px;
+  border-radius: var(--md-radius-xs);
   padding: 0px 3px;
   margin-left: 5px;
   white-space: nowrap;
@@ -91,7 +95,7 @@
 
 .gscysyl {
   font-size: 8px;
-  border-radius: 4px;
+  border-radius: var(--md-radius-xs);
   border: 1px solid var(--block-border-color);
   padding: 0px 3px;
   margin-left: 5px;

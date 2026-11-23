@@ -451,23 +451,40 @@ git push --force origin "$C:$REF"                 # 快照分支无有效历史�
 
 ### 10.2 数据源与字段映射（★ 改这里之前必读）
 
-全部走新浪 + CoinGecko，**无 API Key**；四个请求并发，单组失败只影响该组（各 fetch 内部吞异常返回空）。
+现价走新浪 + Gate.io + CoinGecko（兜底），历史走新浪 JSONP + Gate.io，资讯走东方财富，**无 API Key**；
+各组并发，单组失败只影响该组（各 fetch 内部吞异常返回空）。
 
 | 源 | 端点 | 需要 | 字段映射（已用真实响应逐条核对） |
 |---|---|---|---|
 | 外盘 | `hq.sinajs.cn/list=hf_*` | Referer | 0=现价 4=最高 5=最低 6=时间 7=**昨收** 8=开盘 12=日期 |
 | 内盘 | `hq.sinajs.cn/list=nf_*` | Referer | 2=开 3=高 4=低 8=**最新价** 10=**昨结算**（涨跌基准）17=日期 |
 | 外汇 | `hq.sinajs.cn/list=fx_s*` | Referer | 3=昨收 5=开 6=高 7=低 8=**现价** 10=涨跌幅% 11=涨跌额 |
-| 加密 | `api.coingecko.com/api/v3/simple/price` | 无 | 复用 `services/coin.ts` 的 `FromCoingecko` |
+| 加密 BTC | `hq.sinajs.cn/list=btc_btcbtcusd` | Referer | 0=时间 3=**现价** 6=高 7=低 8=**24h前价** 11=日期 12=成交额 |
+| 加密 ETH | `api.gateio.ws/api/v4/spot/tickers?currency_pair=ETH_USDT` | 无 | `last`=现价、`change_percentage`=24h涨跌%、`high_24h`/`low_24h`=高低（USDT 近似美元） |
+| 加密兜底 | `api.coingecko.com/api/v3/simple/price` | 无 | 复用 `services/coin.ts` 的 `FromCoingecko`（BTC/ETH 已取到时不重复请求） |
+| 历史外盘/BTC | `stock2.finance.sina.com.cn/futures/api/jsonp.php/var _T/GlobalFuturesService.getGlobalFuturesDailyKLine?symbol=XAU` | Referer | `date/open/high/low/close`，BTC 用 `symbol=BTC` |
+| 历史内盘 | `.../InnerFuturesNewService.getDailyKLine?symbol=AU0` | Referer | `d/o/h/l/c`，最新一根通常落后一天 |
+| 历史外汇 | `vip.stock.finance.sina.com.cn/forex/api/jsonp.php/var _T/NewForexService.getDayKLine?symbol=fx_susdcny` | Referer | `date,open,low,high,close`，`|` 分隔；取 4 号位收盘 |
+| 历史 ETH | `api.gateio.ws/api/v4/spot/candlesticks?currency_pair=ETH_USDT&interval=1d` | 无 | `[unix秒, 成交额, 开, 高, 低, 收]` |
+| 相关资讯 | `search-api-web.eastmoney.com/search/jsonp` | Referer | 复用 `News.GetRecent(keyword, page)`，见 §3/组件 `NewsList/Recent` |
+
+**数据源更换（2026-11-18）**：CoinGecko `simple/price` 在本机直连超时、走 Clash 代理 502，
+导致「数字货币」分类整组为空。BTC 改走新浪 `btc_btcbtcusd`，ETH 改走 Gate.io 现货（Coinbase/Gemini/Binance/OKX 在本机均不可达），
+CoinGecko 仅留作兜底。新浪 BTC 的 8 号位是滚动 24h 前价，涨跌额/涨跌幅据此计算；
+10 号位是 24h 成交量（BTC），**不是涨跌幅**，勿误用。
 
 - **必须带 `Referer: https://finance.sina.com.cn`**（否则 403），返回 **GBK**，用 `arraybuffer` + `TextDecoder('gbk')` 解码（与 `fund.ts` 的 `FromSina` 同一套）。
 - 一次请求可带多个代码，返回多行 `var hq_str_xxx="...";`；**空串代表无行情**（实测 `hf_PB` 伦铅为空），直接跳过。
 - 品种表是 `services/price.ts` 顶部的 `FX_SPEC`/`HF_SPEC`/`NF_SPEC`/`CRYPTO_SPEC`，**加品种只改这里**（含 `digits` 小数位与组内 `sort`）。
-- **计价单位统一人民币**（2026-11-16 二次调整）：`GetPrices()` 末尾统一调 `ConvertToCny()`，
-  美元计价品种的主价格全部换算 —— 金/银/铂/钯 `× USDCNY ÷ 31.1034768`（→元/克）、
-  铜/锌/镍/锡 `× USDCNY`（→元/吨）、BTC/ETH `× USDCNY`（→元，小数位归零）；
-  原始美元报价写进 `originText` 作副标题（如 `$3883.55/盎司`）。基准取 `fx_susdcny` 在岸价，
-  **取不到汇率就整体跳过转换**（保留美元口径，不显示半截数据）。汇率与内盘本身是人民币口径，跳过。
+- **计价单位统一人民币**（2026-11-18 三次调整）：`Spec.target` 声明口径 —— `g`=元/克（仅黄金/白银：
+  伦敦金/银、沪金/沪银）、`kg`=元/千克（铂/钯、伦铜锌镍锡、沪铜、铁矿石）、`cny`=元（BTC/ETH）；
+  汇率保持原口径。`ConvertToCny()` 同时处理美元与人民币原报价：外盘金/银 `× USDCNY ÷ 31.1034768`、
+  外盘铂/钯 `× USDCNY ÷ 31.1034768 × 1000`、外盘铜锌镍锡 `× USDCNY ÷ 1000`、
+  沪银 `÷ 1000`（元/千克→元/克）、沪铜/铁矿石 `÷ 1000`（元/吨→元/千克）。
+  原始报价写进 `originText`（如 `$3774.47/盎司`、`¥11039/千克`）。基准取 `fx_susdcny` 在岸价，
+  **取不到汇率就整体跳过转换**（保留原口径，不显示半截数据）。加品种只需改顶部 SPEC 表的 `target`。
+- **历史同口径**：`GetPriceHistory(code, days)` 把日线逐日套当日美元兑人民币中间价（周末沿用最近一天）后，
+  用与现价相同的 `GetUnitFactor()` 换算，故详情图的值域与卡片一致。
 
 **实测校验**（2026-11-16 10:19）：汇率「现价 − 涨跌额 = 昨收」成立；外盘/内盘所有品种「最高 ≥ 现价 ≥ 最低」成立；
 伦敦金折 **833.40 元/克** vs 沪金 **838.4 元/克**（价差 0.6%，符合内外盘溢价）—— 折算链路正确。
@@ -494,9 +511,86 @@ git push --force origin "$C:$REF"                 # 快照分支无有效历史�
 - 已提交：`2658579`（金额口径 + cbje 修复）、`6fad53e`（现价看板）、`99c7c80`（bump 0.3.0）。
 - 本轮实打实的排期坑（都已写进上一条）：版本号改两处、`--arm64` 收不窄架构。
 
+### 10.5 2026-11-18 增量：ETH 换源 / 单位统一 / 现价详情
+
+**新增文件**：
+
+| 文件 | 作用 |
+|---|---|
+| `typings/price.d.ts` | 新增 `TargetUnit`、`HistoryPoint`、`HistoryResult` |
+| `components/Home/CoinView/DetailPriceContent/index.tsx` (+css) | 现价详情抽屉：摘要 + `历史走势` / `相关资讯` 两个 tab |
+| `components/Home/CoinView/DetailPriceContent/Trend/index.tsx` (+css) | 日线折线图（1月/3月/半年/1年/最大），复用 `useResizeEchart`/`useRenderEcharts` |
+
+**改动**：`services/price.ts`（ETH 走 Gate.io；全品类 `target` 口径；`GetPriceHistory()` 历史日线 +
+当日汇率折算）、`components/Home/CoinView/index.tsx`（卡片可点击 → `useDrawer` → 详情抽屉）、
+`components/Home/CoinView/index.module.css`（hover/focus 可点样式）。
+
+**相关资讯**：复用 `News.GetRecent` 与 `NewsList/Recent`，按 `NEWS_KEYWORD_BY_CODE` 映射搜索词
+（如 `hf_XAU`→黄金、`bitcoin`→**BTC**、`ethereum`→以太坊），不要直接用看板 code 去搜。
+东方财富对「比特币」全文检索返回 0 条，BTC 有 60 条。点新闻走既有 `useOpenWebView`。
+
+**实测**（2026-11-18 15:12，用真实响应跑 `GetPrices()` / `GetPriceHistory()`）：
+伦敦金 **808.96 元/克**（原 `$3774.47/盎司`）、沪银 **11.04 元/克**（原 `¥11039/千克`）、
+铂金 **299,708 元/千克**、伦铜 **86.02 元/千克**（原 `$12903.5/吨`）、
+铁矿石 **0.65 元/千克**、BTC **¥432,952**（原 `$64,947.35`）、ETH **¥12,115**（原 `$1817.34`）。
+历史 30 天各品种均返回有效点（外盘/比特币 22 点、内盘 21 点、ETH 30 点），末点与现价一致。
+`npx tsc --noEmit` 仅有 §10.4 所述既存错误，新增代码零错误。
+
+**打包（2026-11-18 15:17）**：版本 bump **0.3.1**（根 `package.json` + `release/app/package.json` 两处都改），
+`npm run build && npx electron-builder --mac dmg:arm64 -p never` 产出
+`release/build/Fishing Funds-0.3.1-arm64.dmg`（119MB）。`hdiutil verify` 校验通过，挂载确认
+`CFBundleShortVersionString=0.3.1`、bundle id 未变。未提交 git、未做真机截图。
+详情不支持「多窗」子页面——`Price.Item` 含完整快照，序列化进 querystring 收益低，需要时再加路由。
+
+### 10.6 2026-11-19 增量：品种扩容 + 开高低展示
+
+**需求**：现价看板只有汇率/贵金属/工业金属/数字币，缺能源、黑色、农产品；另 `Price.Item` 早已取到
+`open/high/low/prevClose` 但卡片与详情**一个都没展示**。
+
+**品种扩容**（只改 `services/price.ts` 顶部 SPEC 表，26 → 28 条）：
+
+| 分组 | 新增品种 | 源 | 口径 |
+|---|---|---|---|
+| 能源（新） | WTI 原油 `hf_CL`、布伦特 `hf_OIL`、上海原油 `nf_SC0` | 新浪外盘/内盘 | 元/桶（新 `target: 'bbl'`） |
+| 工业金属 | 沪铝 `nf_AL0`、沪锌 `nf_ZN0`、沪镍 `nf_NI0`、沪铅 `nf_PB0` | 新浪内盘 | 元/千克 |
+| 黑色系（新） | 螺纹钢 `nf_RB0`、焦煤 `nf_JM0`；**铁矿石 `nf_I0` 从 base 移入** | 新浪内盘 | 元/千克 |
+| 农产品（新） | 生猪 `nf_LH0`、玉米 `nf_C0`、豆一 `nf_A0` | 新浪内盘 | 元/千克 |
+
+- `Price.Category` 增 `'black' | 'energy' | 'agri'`；`TargetUnit` 增 `'bbl'`（元/桶，桶不折体积只折汇率）。
+- 内盘子 tab 从 4 个调整为 5 个：`全部` / `贵金属` / `金属`（base+black）/ `能源·农产`（energy+agri）/ `外汇·BTC`。
+- **铁矿石归位黑色系**：原先放「工业金属」不准确，接口与口径不变，只是分组变化。
+- 历史走势按前缀自动分派（`hf_`→GlobalFuturesService、`nf_`→InnerFuturesNewService），新品种**无需额外代码**，
+  `GetPriceHistory` 的 unit 文案补 `bbl` 分支。
+
+**字段展示**：
+- 卡片增一行「高 / 低」（`.cardRange`，无数据显示 `--`）。
+- 详情抽屉 summary 增 5 列 grid：开盘 / 最高 / 最低 / 昨收 / 振幅。
+- 新增 `Price.Item.amplitude`（振幅 %），在 `GetPrices()` 折算**之后**统一算 `(high−low)/prevClose×100`，
+  保证分子分母同口径；Gate.io（ETH）不返回开盘/昨收，故其振幅为 `undefined`，UI 显示 `--`。
+
+**实测（2026-11-19 19:15，真实请求跑 `GetPrices()`/`GetPriceHistory('30')`）**：28 条全部有效，7 个分组齐全。
+WTI **551.32 元/桶**（$82.70）、布伦特 **615.75 元/桶**（$92.36）、上海原油 **585.90 元/桶**、
+沪铝 **21.33**、沪锌 **23.98**、沪镍 **118.95**、沪铅 **15.54**、螺纹 **2.98**、焦煤 **1.38** 元/千克；
+生猪 **9.17**、玉米 **2.18**、豆一 **5.04** 元/千克（= 9170/2182/5045 元/吨，副标题保留原口径）。
+13 个新增/改归品种历史均 22 点，末点与现价 ratio 0.998~1.003。
+
+**排期坑（本次确认）**：
+- 内盘 `row[10]` 是**昨结算**（期货涨跌基准），`row[5]` 在收盘后等于当日收盘价，两者不能混用；
+  `ParseNf` 取 `row[10] || row[5]` 的顺序是对的。11-19 沪金显示 −2.60% 并非脏数据 ——
+  是内外盘溢价从 3.4% 收敛到 0.6%（伦敦金 799.59 元/克 vs 沪金 804.32），实测现价本身正确。
+- **元/千克对黑色系读数不友好**（铁矿石 0.65、焦煤 1.38），但保持跨品种同口径，靠副标题
+  `¥648/吨`、`¥1375.5/吨` 兜底；若要改元/吨需同步 `GetUnitFactor` 三处。
+- 新增品种的资讯搜索词要补 `NEWS_KEYWORD_BY_CODE`，否则拿 `nf_LH0` 这类代码去搜东财返回 0 条。
+
+**验证**：`npx tsc --noEmit` 仅 9 条既存错误（hxc3 声明 ×2、SortBar ×4、WebViewerDrawer ×3），新增零错误；
+`npm run build` 通过（7.9s）。**未 bump 版本、未打 dmg、未提交** —— 工作区还带着 §10.5 的 0.3.1 未提交改动。
+
 ---
 
-_最后更新：2026-11-16（新增 §10：货币模块改为「现价看板」——汇率/贵金属/工业金属/数字货币，
+_最后更新：2026-11-20 晚（新增 §10.9：AnimatedNumber 数字补间、详情容器转场、圆角三档化、
+滚动体感；§10.8 为 M3 动效令牌体系。）_
+
+_历史：2026-11-16（新增 §10：货币模块改为「现价看板」——汇率/贵金属/工业金属/数字货币，
 独立数据层 `services/price.ts` + 全品类人民币计价；顺手修复 `CalcFunds`/`CalcStocks` 未返回
 `cbje` 导致持有收益率恒为 0 的 bug。**已提交并发版 v0.3.0。**）_
 
@@ -505,6 +599,241 @@ _历史：2026-10-27（新增 §9.6：金额口径统一为「实时市值」，
 
 _历史：2026-10-23（新增 §9 v0.2.0 变更记录：新浪基金估值源、Referer 修复、打包版本号修复、货币源切 Coingecko；
 并补充安卓 `versionCode/versionName` 待 bump 与签名密钥说明。其余分支保留上游完整历史。）_
+
+### 10.9 2026-11-20 增量四：数字滚动与 UI 收敛
+
+#### AnimatedNumber（新增组件）
+
+`components/AnimatedNumber/index.tsx`：数据刷新时价格/涨跌额从旧值补间到新值，不再瞬间跳变。
+
+- **不用 setState**：每帧 setState 会让 28 张现价卡片在 380ms 内重渲染数百次。
+  这里用 `useRef` 直接改 `textContent`，补间期间**零 React 渲染**。
+- 首次渲染显示终值，不从 0 滚上来；系统 `prefers-reduced-motion` 时直接跳到终值。
+- 中途新值到来时从「当前显示值」继续补间，不回退。
+- 应用在现价卡片（价格、涨跌额、涨跌幅）与现价详情；其他列表数字未动（避免改动面过大）。
+
+#### 容器转场与视觉收敛
+
+- 现价/基金/股票详情的内容根节点加 `.md-scale-in`（淡入 + 98%→100%），与抽屉底部滑入叠加，
+  形成简化的 Material **container transform**。
+- `Empty` 空态加 `.md-fade-in`，加载完从空态切到列表时不再硬切。
+- **圆角三档化**：全库 `border-radius` 原有 2/3/4/5/6/7/8/10px 共 8 种数值，
+  现收敛为 `--md-radius-xs/sm/md`（4/6/8px）三档，共改动 25 个 `.module.css`；
+  `--base-radius`(12px) 仍归 antd 大卡片，`50%` 保留给圆形头像。
+- `[data-scroll]` 容器用 `scroll-behavior: smooth` + `overscroll-behavior: contain`，
+  桌面端补 6px 细滚动条（Android 端仍由 mobile.css 隐藏）；当前只标在现价看板容器。
+
+**验证**：`tsc --noEmit` 仍 9 条既存错误；`npm run build` 8.6s 通过；
+产物 CSS 含 `md-radius-xs`(20 次)、`md-scale-in`、`md-fade-in`、`data-scroll`。
+
+**未做**：设置项里的「动画强度」开关（目前只有系统级 reduced-motion）；未 bump 版本 / 未打 dmg。
+
+### 10.10 2026-11-23 增量五：v0.3.3 → v0.3.5（bug 修复 + 涨跌色开关 + BTC 换源/美元计价）
+
+本轮由用户看截图反馈触发，三批发版。提交信息（conventional commits，按文件拆分）：
+
+```
+feat(price): BTC 改用 Gate.io 现价/日线，支持美元计价口径
+feat(theme): 新增涨跌色反转开关，修复主题切换后内联色滞后
+fix(animated-number): 统一首帧格式，format 改 ref 避免动画被重渲染打断
+fix(coin-view): 提高现价卡片小字可读性
+chore(release): bump 0.3.5（versionCode 8）
+docs: 更新 AGENTS/README/博客介绍到 v0.3.5
+```
+
+> 说明：上周（11-16~11-20）的 v0.3.0 之后改动（现价看板品种扩容、内外盘价差、
+> Material 3 动效、ErrorBoundary、AnimatedNumber、圆角收敛等）原本也一直未提交，
+> 本轮一并纳入提交（详见 §10.5~10.9）。
+
+#### 10.10.1 主题切换后颜色滞后（根治）
+
+**根因**（比"清缓存时机晚"更深）：`GetVariblesColor()` 从 `getComputedStyle(:root)` 读 CSS 变量，
+而 ThemeProvider 的 `<style>` 要等 commit 后才生效——render 期无论何时清缓存，读到的都是上一帧
+旧 DOM。单纯把 `InvalidateColorCache()` 从 effect 挪到 render 也无效（读到旧 DOM 后反而缓存了旧值）。
+症状：切深浅色后 echarts 内联色（K 线/分布图）停留在旧主题，直到下次数据刷新才更新。
+
+**修法**（`utils/index.ts` + `components/ThemeProvider/index.tsx`）：
+- 新增 `SetVariblesColorOverride(map)`：全局 ThemeProvider 在 `Styles` 的 **render 阶段**用当前 token
+  直接注入全部 27 个白名单变量到覆盖层；`GetVariblesColor()` 覆盖层齐全时直接返回，彻底绕开 DOM。
+- **仅无 `target` 的 ThemeProvider 注入**；设置页主题预览带 `target` 限定作用域，不写全局缓存。
+- 移除了原来的 `useEffect(() => InvalidateColorCache(), [...])`。
+- 改动后自查：注入的 27 键与 `constants/varibles.ts` 白名单**必须一一对应**（漏一个该变量就取空串）。
+
+#### 10.10.2 涨跌色反转开关（评估报告 P0）
+
+新增 `reverseRiseFallSetting`（默认 `false`=红涨绿跌 A 股习惯；`true`=绿涨红跌 美股/币圈）。
+**默认值未变**，用户必须手动开启——不做隐式行为替换。
+
+- 改动 7 处：`typings/system.d.ts`、`store/features/setting.ts`（默认值）、`app.tsx`、
+  `SettingContent/index.tsx`（state + 外观区 Switch + onSave + 预览 config）、`ThemeProvider`、
+  `utils/hooks/system.ts`。
+- ThemeProvider 用 `riseColor/riseBg/fallColor/fallBg` 一组变量统一映射，CSS 变量与 JS 覆盖层
+  **共用同一组值**（否则两处不一致）；`danger-color` 是删除语义色，**不参与反转**；
+  antd token 的 `colorSuccess/colorError` 也**不动**（避免误伤所有 antd 组件的语义色）。
+- ⚠️ 易漏点：图表用的 redux `varibleColors` 只在 `useMappingLocalToSystemSetting` 的
+  `[hashId]` effect 里同步，而反转开关不改 antd token → hashId 不变 → 图表不刷新。
+  修法是把 `reverseRiseFallSetting` 也加入该 effect 依赖（effect 在 commit 后跑，此时新覆盖层已注入）。
+
+#### 10.10.3 AnimatedNumber 两处修正
+
+- 首帧格式化与动画帧共用 `formatValue()`：原来首帧无条件用 `toLocaleString`，
+  忽略 `thousand=false` 与 `format`，切值时闪一下不同格式。
+- `format` 走 `useRef`（`formatRef.current = format`），effect 依赖数组去掉 `format`：
+  原调用处都传内联箭头函数，每次父组件 render 引用都变，导致动画被反复打断重启。
+
+#### 10.10.4 BTC 现价错误 → 数据源迁移（v0.3.4）
+
+用户截图反馈 BTC 显示 ¥408,684 / −0.30%（绿），同期 Gate.io 实际涨约 3.8%。
+
+**根因**：BTC 主源新浪 `btc_btcbtcusd` 指数**时间戳会冻结**（实测卡在某分钟后现价一动不动），
+且 `row[8]` 并非 24h 前价，算出的涨跌方向与实际相反。ETH 早在 11-18 换 Gate.io 故正常。
+
+**修法**（`services/price.ts`）：BTC 迁到 Gate.io `BTC_USDT`，与 ETH 同链路：
+- `GATE_CRYPTO_SPEC` 加 BTC；`GetCryptoItems()` 里 **Gate 块放到新浪块之前**并加去重，
+  新浪降为兜底（两边都要 `items.some(code)` 去重，否则主源被兜底覆盖）。
+- `GetPriceHistory()` 的 `bitcoin` 分支移除 `FetchGlobalHistory('BTC')`，与 ETH 一起走 Gate 日线，
+  保持现价/历史同口径。同步更新文件头与几处过时注释。
+- **实测**（esbuild 打包 price.ts + stub request 走真网络）：BTC ¥409,777 / +3.84% /
+  副标题 $61446，历史 30 点末点 ¥408,906 口径一致。
+  ⚠️ 验证脚本要点：`FetchSinaRows` 用 `responseType:'arraybuffer'`，stub 必须返回真 `ArrayBuffer`，
+  否则外汇解析失败 → `usdCny=0` → `ConvertToCny` 整体跳过（症状：价格没折人民币、单位还是"美元"）。
+
+**教训**：内外盘/跨源价差**必须实测**，不要凭"上期所含税 / 指数应该给前收"这类制度推断。
+本轮曾据"锌含 13% 增值税"给沪锌价差加 note，实测溢价仅 2.24%（铜 13.6%/镍 12.5%/银 10.6%
+才是税差主导），已撤销并留注释防止后人重犯。
+
+#### 10.10.5 现价卡片小字可读性
+
+`Home/CoinView/index.module.css`：`cardRange/cardFooter/cardTime/cardMarket` 原字号
+`0.65~0.7 × base-font-size` 再叠 `opacity 0.5~0.75`，两层削弱叠加导致模糊。
+改为 `0.75~0.8` 倍、去掉 opacity、用实色变量（`--secondary-main-text-color` 等）。
+
+#### 10.10.6 BTC 改回美元计价（14:54，v0.3.4 打包之后）
+
+用户要求 BTC 以美元显示（其余品种仍统一人民币）。做法是给计价口径加一个 `usd` 枚举值，而非在 UI 层做特例：
+
+- `typings/price.d.ts`：`TargetUnit` 增 `'usd'`（g/kg/bbl/cny/usd）。
+- `CRYPTO_SPEC`：BTC `target: 'usd'`（ETH 仍 `cny`）；加品种注释说明二者口径不同。
+- `ConvertToCny()`：`target === 'usd'` 的条目直接 `return` —— 不折汇率、不改单位/currency/digits、
+  不生成人民币化副标题 `originText`（卡片 footer 只显示单位「美元」）。
+- `GetUnitFactor()`：`!target || target === 'usd'` 返回 1（不套汇率）。
+- `GetPriceHistory()`：unit 文案 `usd → 美元`；`needFx = currency==='USD' && target!=='usd'`，
+  BTC 历史跳过汇率请求、直接用 Gate 美元日线，保持现价/历史同口径。
+- **实测**：BTC `$61,524.5` / 单位「美元」/ 无副标题 / 历史末点 61272.3「美元」；ETH 不受影响（仍元 + $副标题）。
+- 已随 **v0.3.5** 发版（见 10.10.7）；v0.3.4 的 dmg 不含此改动。
+
+#### 10.10.7 发版与验证
+
+- 版本 bump 两轮：v0.3.3（versionCode 6）、v0.3.4（versionCode 7 / versionName 0.3.4）。
+  三处同步：根 `package.json`、`release/app/package.json`（electron-builder 实际读这个）、`android/app/build.gradle`。
+- 产物：`release/build/Fishing Funds-0.3.4-arm64.dmg`（121MB，标准布局含 `Applications` 软链 +
+  `.background.tiff`，`hdiutil verify` CRC VALID，挂载确认版本 0.3.4、bundle id 未变，
+  app.asar 含 `BTC_USDT`）。v0.3.3 的 120MB 包是**中间产物**，最终交付以 0.3.4 为准。
+- 验证：`tsc --noEmit` 始终 9 条既存错误无新增；`git diff --check` PASS；构建 8.5s 通过。
+- **v0.3.5**（14:57，BTC 美元计价，versionCode 8）：`release/build/Fishing Funds-0.3.5-arm64.dmg`
+  （121MB，标准布局含 `Applications` 软链 + 背景图，CRC VALID，版本 0.3.5，
+  app.asar 含 `"usd"` 计价与 `BTC_USDT`）。**这是当前最新交付包**。
+
+**未做 / 遗留**：未提交 git、未推 GitHub Release、未打 Android 包；设置项「动画强度」开关仍未做。
+
+### 10.8 2026-11-20 增量三：Material 3 动效体系
+
+**目标**：把生硬瞬变换成有惯性的过渡。丝滑感来自「曲线 + 分级时长 + 一致转场语义」，
+**不是**把时长拉长。改动前的基线：全项目仅 36 处 transition、1 处 keyframes（刷新图标旋转）。
+
+#### 令牌层（改这里就能全局调）
+
+- 新增 `src/renderer/styles/motion.css`（在 `app.tsx` 里于 `app.css` 之前 import）。定义：
+  - 曲线 `--md-ease-standard/decelerate/accelerate`（M3 官方 cubic-bezier）
+  - 时长 `--md-dur-short/mid/long` = 150/250/400ms
+  - 关键帧 `md-fade-through`（淡入 + 97%→100%）、`md-rise`（上浮 10px 淡入）、`md-scale-in`
+  - 工具类 `.md-page-enter` / `.md-stagger` / `.md-fade-in` / `.md-pressable`
+- `ThemeProvider` 的 antd token 同步设 `motionDurationFast/Mid/Slow = 100/200/300ms`、
+  `motionEaseInOut = cubic-bezier(0.2,0,0,1)`、`motionEaseOut = cubic-bezier(0.05,0.7,0.1,1)`。
+  ★ **两层时长不同是有意的**：antd 驱动的是标签指示条、气泡等小控件，400ms 会拖沓；
+  CSS 变量层的 `long=400ms` 才是页面/抽屉级时长。改 antd 动画改 token，改页面转场改 CSS 变量。
+
+#### 转场语义
+
+| 场景 | 做法 | 文件 |
+|---|---|---|
+| 底部 5 大 tab | **关掉 antd 的横向滑动**（`animated={false}`），给 Tabs 加 `key={activeKey}` 重挂载 + `.md-page-enter` 播 fade-through | `components/Home/index.tsx` Body |
+| 子 tab（贵金属/基金筛选等） | 保留 antd 自带横向切换，曲线由 motion token 接管 | `components/GroupTab/index.tsx` |
+| 现价卡片网格 | `.grid` 叠加 `.md-stagger`，前 12 项按 24ms 依次上浮 | `CoinView/index.tsx` |
+| 4 类列表行（基金/股票/板块/指数） | `.row` 加 `animation: md-rise ... both`；不打 stagger（行数可能上百，逐条延迟会失控） | 各 `*Row/index.module.css` |
+| 卡片按压 | `:active { transform: scale(0.97) }`，150ms standard 曲线 | `CoinView/index.module.css` |
+| 涨跌色变化 | `.text-up/.text-down/.text-none` 加 `transition: color 150ms` —— 刷新时不再瞬变 | `styles/motion.css` |
+
+#### 无障碍与性能
+
+- `prefers-reduced-motion: reduce`：全局把 animation/transition 压到 0.01ms（不用 0，避免
+  `transitionend` 不触发），并禁用所有自定义位移/缩放。
+- 动画只动 `transform`/`opacity`（合成层），不碰 `width/height/top/left`；`will-change` 仅给按压元素。
+- 列表行不打 stagger 的另一个原因：数据刷新时行不重挂载，CSS animation 不会重播，只在切 tab 时播一次。
+
+**未做**：数字滚动补间（如 799.59→804.32 逐位滚动）—— 需改所有数字渲染点，成本高且小幅波动时
+反而显得闹腾；若要做应封装 `AnimatedNumber` 只用在现价卡片与估算收益两处。
+**未做**：设置项里的「动画强度」开关 —— 目前只有系统级 reduced-motion，需要的话在 setting store 加。
+
+**验证**：`tsc --noEmit` 仍 9 条既存错误；`npm run build` 8.1s 通过；产物 CSS 确认含
+`@keyframes md-fade-through / md-rise / md-scale-in` 与 M3 曲线 `cubic-bezier(.05,.7,.1,1)`，
+CSS Modules 未对全局 keyframes 名做 hash。未做 UI 截图（沙箱无权限）。
+
+### 10.7 2026-11-19 增量二：内外盘价差 + 一轮全局优化（v0.3.2）
+
+#### 内外盘价差（`services/price.ts`）
+
+`SPREAD_PAIRS` + `GetSpread(code, items)` 对同一标的的两个市场算溢价，现价详情抽屉展示一行：
+配对 12 条（沪金↔伦敦金、沪银↔伦敦银、沪铜↔伦铜、沪锌↔伦锌、沪镍↔伦镍、上海原油↔布伦特）。
+两边都已折人民币**同口径**，直接相除即可，不再套汇率。
+
+★ **增值税口径（实测 2026-11-19）**：沪铜 +12.98%、沪镍 +13.91%、沪银 +11.53%，而沪金仅 +0.64%。
+这不是数据错 —— 国内白银/铜/镍现货含 13% 增值税、LME 不含税，黄金免征增值税。
+UI 用 `note` 字段标注「含13%增值税差」，避免被误读成套利空间；原油是品种品质差异，标「品种品质不同」。
+
+#### 主题与样式（本轮修复）
+
+| 问题（有实证） | 处理 |
+|---|---|
+| `GetVariblesColor()` 每次调用都做 20 次 `getComputedStyle`（强制样式重算），而 `GetValueColor` 在列表每行调 2~3 次 | 加模块级缓存 + `InvalidateColorCache()`，主题变更时由 `ThemeProvider` 失效 |
+| `constants/varibles.ts` 里 `'--base-font-size': '--base-font-color'` 笔误；27 个变量只登记 20 个 | 修正笔误并补齐到 27 个 |
+| token 未声明 `fontFamily`，中文在安卓 WebView 退到 Roboto | 显式给中英文混排字体栈（PingFang SC / 微软雅黑 / Segoe UI） |
+| `app.css` 全局 `:focus-visible { outline: none }`，键盘完全无焦点反馈 | 仅对 `[role=button]` 和 `a` 恢复 2px 主色焦点环 |
+| 5 个列表行（基金/股票/板块/指数/货币）数字宽度不等，滚动时抖动 | 各自 `.row` 加 `font-variant-numeric: tabular-nums` |
+| 首屏 React 挂载前 CSS 变量不存在 → 深色模式白闪 | `index.html` 内联 `prefers-color-scheme` 兜底配色 |
+| 安卓 `ipcRenderer.invoke/on` 全 noop，`nativeTheme-updated` 永远收不到 → 「跟随系统深色」失效 | `index.html` 桥里用 `matchMedia('(prefers-color-scheme: dark)')` 模拟该事件 |
+
+#### 稳定性
+
+新增 `components/ErrorBoundary`（此前**没有任何错误边界**，任一渲染异常即卸载整棵树 → 纯白窗口无提示），
+在 `index.tsx` 包住 `<App />`，提供「重试 / 重新加载」两个出口。
+
+#### 打包（本机沙箱踩坑 · 2026-11-23 纠正）
+
+⚠️ **旧结论"dmg 阶段必失败、需 hdiutil 兜底"是错的**（0.3.2 时因后台提权无效而误判）。
+**正确做法：对 electron-builder 整体一次前台提权即可**，dmgbuild 写 /Volumes 在提权下正常通过：
+
+```
+rm -rf /tmp/fb-dist
+npx electron-builder --mac dmg:arm64 -p never --config.directories.output=/tmp/fb-dist
+# ↑ 必须前台执行并提权（run_in_background 时提权无效），产出标准 120MB dmg
+```
+
+- `--config.directories.output=/tmp/fb-dist` 绕开 `proper-lockfile` 删锁拦截（/tmp 下删除放行）。
+- 构建产物同步：`npx electron-vite build --outDir /tmp/ff-final-dist`（默认 `npm run build` 会因清
+  旧 assets 被安全删除拦截），再用 **`cp -Rf`** 覆盖进 `release/app/dist/`；
+  ⚠️ 别用 `rsync`——它的原子临时文件（`.synuqe41Gd`）会触发删除拦截。
+- ❌ **不要用 `hdiutil create -srcfolder` 兜底**：打出的 dmg 缺 `Applications -> /Applications` 软链
+  和 `.background.tiff`，拖动安装时**不会提示覆盖**（0.3.3 曾踩，144MB 那个是废包）。
+- 验收四件套：`hdiutil verify` CRC、挂载看 `.background.tiff` + `Applications` 软链、
+  `CFBundleShortVersionString`、bundle id 未变。
+
+产物：`release/build/Fishing Funds-0.3.4-arm64.dmg`（121MB，标准布局，CRC VALID，
+`CFBundleShortVersionString=0.3.4`、bundle id `com.electron.1zilc.fishing-funds` 未变）。
+版本号改三处：根 `package.json`、`release/app/package.json`（electron-builder 实际读这个）、
+`android/app/build.gradle`（0.3.4 为 versionCode 7 / versionName 0.3.4）。
+
+**验证**：`npx tsc --noEmit` 仍只有 9 条既存错误；`npm run build` 8.4s 通过。
 
 _历史：2026-09-23（安卓联调第三轮：新增「原生优先 + 浏览器栈重试」双网络栈互补（`ContextModulesPlugin`
 catch 回 `__failed` + `index.html` inline 桥 `webviewFetch`），修复股票/指数行情、分时、K线与详情页全空；

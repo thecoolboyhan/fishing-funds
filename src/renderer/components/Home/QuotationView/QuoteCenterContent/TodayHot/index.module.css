@@ -22,7 +22,7 @@
   color: var(--inner-text-color);
 }
 .tag {
-  border-radius: 3px;
+  border-radius: var(--md-radius-xs);
   font-size: 8px;
   padding: 0 4px;
   text-align: center;

@@ -66,17 +66,22 @@ export const APIOptions = [
   },
 ];
 
+/* 2026-11-20：预设色重选。原列表（antd 官方 v4 调色板）是按「当线条色」设计的，
+   但这里会被当成按钮/徽标底色配白字，实测白字对比度 10 个里 7 个不达 AA：
+   黄 #FADB14 1.38:1、绿 #52C41A 2.27:1、橙 #FA8C16 2.38:1…其中 FundRow 的
+   持仓徽标只有 8px 白字，属于最难读的组合。以下按色相各取「仍够鲜艳且 ≥4.5:1」
+   的一档，括号内为白字实测对比度。 */
 const presetColors = [
-  '#F5222D',
-  '#FA8C16',
-  '#FADB14',
-  '#8BBB11',
-  '#52C41A',
-  '#13A8A8',
-  '#1677FF',
-  '#2F54EB',
-  '#722ED1',
-  '#EB2F96',
+  '#DC2626', // 红 4.83
+  '#C7460A', // 橙 4.87
+  '#9C6B08', // 金 4.65
+  '#4D7C0F', // 黄绿 4.99
+  '#15803D', // 绿 5.02
+  '#0F766E', // 青 5.47
+  '#2563EB', // 蓝 5.17
+  '#4F46E5', // 靛 6.29
+  '#9333EA', // 紫 5.38
+  '#DB2777', // 品红 4.60
 ];
 
 const SettingContent: React.FC<SettingContentProps> = (props) => {
@@ -93,6 +98,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
     opacitySetting,
     baseFontSizeSetting,
     systemThemeSetting,
+    reverseRiseFallSetting,
     bottomTabsSetting,
     adjustmentNotificationSetting,
     adjustmentNotificationTimeSetting,
@@ -132,6 +138,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
   const [opacity, setOpacity] = useState(opacitySetting);
   const [baseFontSize, setBaseFontSize] = useState(baseFontSizeSetting);
   const [systemTheme, setSystemTheme] = useState(systemThemeSetting);
+  const [reverseRiseFall, setReverseRiseFall] = useState(!!reverseRiseFallSetting);
   // 底栏设置
   const [bottomTabs, setBottomTabs] = useState(bottomTabsSetting);
   // 通知设置
@@ -184,6 +191,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
         opacitySetting: opacity,
         baseFontSizeSetting: baseFontSize,
         systemThemeSetting: systemTheme,
+        reverseRiseFallSetting: reverseRiseFall,
         bottomTabsSetting: bottomTabs.map((tab) => ({ key: tab.key, name: tab.name, show: tab.show })),
         adjustmentNotificationSetting: adjustmentNotification,
         adjustmentNotificationTimeSetting: adjustmentNotificationTime || defaultSystemSetting.adjustmentNotificationTimeSetting,
@@ -248,6 +256,7 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
         lowKey,
         lowKeyDegree,
         baseFontSize,
+        reverseRiseFall,
         primaryColor: themeColor,
       }}
     >
@@ -366,6 +375,12 @@ const SettingContent: React.FC<SettingContentProps> = (props) => {
                       <section>
                         <label>简洁模式：</label>
                         <Switch size="small" checked={concise} onChange={setConcise} />
+                      </section>
+                      <section>
+                        <label title="关闭=红涨绿跌（A 股）；开启=绿涨红跌（美股 / 币圈）">
+                          涨跌色反转：
+                        </label>
+                        <Switch size="small" checked={reverseRiseFall} onChange={setReverseRiseFall} />
                       </section>
                       <section>
                         <label>低调模式：</label>

@@ -1,0 +1,204 @@
+/**
+ * Material 3 动效体系（2026-11-20）
+ *
+ * 目标：把「生硬瞬变」换成 Google 那种「有惯性」的过渡。丝滑感不来自更长的时长，
+ * 而来自三件事：① 合适的缓动曲线 ② 按元素体量分级的时长 ③ 转场语义一致。
+ *
+ * 曲线取自 Material Design 3 官方定义：
+ *   standard      cubic-bezier(0.2, 0, 0, 1)          —— 通用，两端都缓
+ *   emphasized    cubic-bezier(0.2, 0, 0, 1)          —— 强调，配合大位移
+ *   decelerate    cubic-bezier(0.05, 0.7, 0.1, 1)     —— 进入画面：快起慢收
+ *   accelerate    cubic-bezier(0.3, 0, 0.8, 0.15)     —— 离开画面：慢起快收
+ *
+ * 时长分级（M3 duration tokens）：
+ *   short 150ms  —— hover / 按压 / 颜色变化等微交互
+ *   mid   250ms  —— 列表项、卡片、气泡
+ *   long  400ms  —— 抽屉、页面级转场
+ *
+ * 性能约定：只动 transform 与 opacity（走合成层），不碰 width/height/top/left。
+ * 无障碍：文件末尾对 prefers-reduced-motion 全量降级。
+ */
+
+:root {
+  /* ── 缓动 ───────────────────────────────────────────── */
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-ease-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* ── 时长 ───────────────────────────────────────────── */
+  --md-dur-short: 150ms;
+  --md-dur-mid: 250ms;
+  --md-dur-long: 400ms;
+
+  /* ── 位移/缩放常量（保持克制，超出 12px 会显得「重」）── */
+  --md-rise-distance: 10px;
+  --md-scale-enter: 0.97;
+  --md-scale-press: 0.98;
+
+  /* 圆角三档（2026-11-20）：原全库有 2/3/4/5/6/7/8/10px 共 8 种取值，
+     收敛到 xs/sm/md 三档；--base-radius(12px) 仍归 antd 大卡片用 */
+  --md-radius-xs: 4px;
+  --md-radius-sm: 6px;
+  --md-radius-md: 8px;
+}
+
+/* ── 关键帧 ─────────────────────────────────────────────── */
+
+/* 页面级：fade through —— 淡入 + 从 97% 放大，替代生硬的整体切换 */
+@keyframes md-fade-through {
+  from {
+    opacity: 0;
+    transform: scale(var(--md-scale-enter));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 列表项：上浮淡入 */
+@keyframes md-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--md-rise-distance), 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 抽屉/浮层内容：轻微放大淡入（容器变换的简化版） */
+@keyframes md-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── 通用工具类 ─────────────────────────────────────────── */
+
+/* 页面容器：每次 key 变化重新挂载即重播 */
+.md-page-enter {
+  animation: md-fade-through var(--md-dur-long) var(--md-ease-decelerate) both;
+}
+
+/* 列表容器：子项依次上浮。只给前 12 项编排，再多总时长会失控 */
+.md-stagger > * {
+  animation: md-rise var(--md-dur-mid) var(--md-ease-decelerate) both;
+}
+.md-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.md-stagger > *:nth-child(2) { animation-delay: 24ms; }
+.md-stagger > *:nth-child(3) { animation-delay: 48ms; }
+.md-stagger > *:nth-child(4) { animation-delay: 72ms; }
+.md-stagger > *:nth-child(5) { animation-delay: 96ms; }
+.md-stagger > *:nth-child(6) { animation-delay: 120ms; }
+.md-stagger > *:nth-child(7) { animation-delay: 144ms; }
+.md-stagger > *:nth-child(8) { animation-delay: 168ms; }
+.md-stagger > *:nth-child(9) { animation-delay: 192ms; }
+.md-stagger > *:nth-child(10) { animation-delay: 216ms; }
+.md-stagger > *:nth-child(11) { animation-delay: 240ms; }
+.md-stagger > *:nth-child(12) { animation-delay: 264ms; }
+.md-stagger > *:nth-child(n + 13) { animation-delay: 264ms; }
+
+/* 内容淡入（不位移），用于文字块、标签组 */
+.md-fade-in {
+  animation: md-fade-through var(--md-dur-mid) var(--md-ease-decelerate) both;
+}
+
+/* 按压反馈：Material 的「下陷」感，比单纯变色更像可点 */
+.md-pressable {
+  transition: transform var(--md-dur-short) var(--md-ease-standard);
+  will-change: transform;
+}
+.md-pressable:active {
+  transform: scale(var(--md-scale-press));
+}
+
+/* ── 全局微交互 ─────────────────────────────────────────── */
+
+/* 涨跌色切换时平滑过渡（原本是瞬变，刷新时很跳） */
+.text-up,
+.text-down,
+.text-none {
+  transition: color var(--md-dur-short) var(--md-ease-standard);
+}
+
+/* 通用可点击元素：hover 用亮度 + 位移微调，点按有缩放 */
+.clickable {
+  transition: opacity var(--md-dur-short) var(--md-ease-standard),
+    transform var(--md-dur-short) var(--md-ease-standard),
+    filter var(--md-dur-short) var(--md-ease-standard);
+}
+.clickable:active {
+  transform: scale(var(--md-scale-press));
+}
+
+/* ── antd 组件曲线校准 ──────────────────────────────────── */
+/* antd 的时长/曲线已通过 ThemeProvider 的 motion* token 统一，
+   这里只补 token 覆盖不到的两处：抽屉遮罩与列表项入场。 */
+
+.ant-drawer-mask {
+  transition: opacity var(--md-dur-long) var(--md-ease-standard) !important;
+}
+
+/* 抽屉本体：从底部滑入时用 decelerate，收得快、停得稳 */
+.ant-drawer-content-wrapper {
+  transition-timing-function: var(--md-ease-decelerate) !important;
+}
+
+/* 弹层（下拉、气泡）用 emphasize，避免「啪」地出现 */
+.ant-dropdown,
+.ant-select-dropdown,
+.ant-tooltip {
+  animation-duration: var(--md-dur-mid) !important;
+  animation-timing-function: var(--md-ease-decelerate) !important;
+}
+
+/* ── 无障碍：系统开启「减少动态效果」时全量降级 ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* antd 的动画不吃这些类名，用通配兜底压到接近 0（不是 0，避免 transitionend 不触发） */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .md-page-enter,
+  .md-stagger > *,
+  .md-fade-in {
+    animation: none !important;
+  }
+  .md-pressable:active,
+  .clickable:active {
+    transform: none !important;
+  }
+}
+
+/* ── 2026-11-20 追加：滚动体感与空态 ────────────────────── */
+
+/* 主内容区滚动跟手：M3 用 decelerate 让惯性收尾自然。
+   只给声明了 data-scroll 的容器，不全局改（避免 Tab/抽屉内部滚动被打乱）。 */
+[data-scroll] {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+/* Thin scrollbar：桌面端默认滚动条太粗，盖住数字列。Android 端已在 mobile.css 隐藏 */
+@media (hover: hover) {
+  [data-scroll]::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  [data-scroll]::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: var(--md-radius-sm);
+  }
+}

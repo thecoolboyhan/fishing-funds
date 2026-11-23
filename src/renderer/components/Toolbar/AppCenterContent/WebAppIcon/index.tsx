@@ -1,6 +1,7 @@
 import React from 'react';
 import { useBoolean } from 'ahooks';
 import colorHash from '@/utils/colorHash';
+import { GetReadablePair } from '@/utils';
 import * as Enums from '@/utils/enums';
 import styles from './index.module.css';
 
@@ -18,7 +19,8 @@ const WebAppIcon: React.FC<WebAppIconProps> = (props) => {
   const [success, { setFalse }] = useBoolean(true);
 
   const icon = (() => {
-    const color = props.color || colorHash.hex(title);
+    // 底色可能来自哈希（明度固定 L=0.6）或用户自选，固定白字会掉到 1.6:1
+    const readable = GetReadablePair(props.color || colorHash.hex(title));
 
     switch (iconType) {
       case Enums.WebIconType.First:
@@ -26,7 +28,8 @@ const WebAppIcon: React.FC<WebAppIconProps> = (props) => {
           <div
             className={styles.app}
             style={{
-              background: color,
+              background: readable.background,
+              color: readable.color,
             }}
             onClick={props.onClick}
           >
@@ -50,7 +53,8 @@ const WebAppIcon: React.FC<WebAppIconProps> = (props) => {
           <div
             className={styles.app}
             style={{
-              background: color,
+              background: readable.background,
+              color: readable.color,
             }}
             onClick={props.onClick}
           >

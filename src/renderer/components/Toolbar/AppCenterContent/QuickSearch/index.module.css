@@ -4,7 +4,7 @@
 }
 .item {
   text-align: center;
-  border-radius: 7px;
+  border-radius: var(--md-radius-sm);
   border: 1px solid var(--block-border-color);
   padding: 3px 8px;
   cursor: pointer;
@@ -14,7 +14,8 @@
   flex-wrap: nowrap;
   margin-right: 10px;
   margin-bottom: var(--base-padding);
-  color: var(--tag-text-color);
+  /* 字色由 GetContrastText 按底色算好，从父级继承 */
+  color: inherit;
   span {
     word-break: keep-all;
     margin-right: 5px;
@@ -23,7 +24,7 @@
     margin-right: 0;
   }
   svg {
-    fill: var(--tag-text-color);
+    fill: currentColor;
     height: 14px;
     width: 14px;
   }

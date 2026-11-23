@@ -1,6 +1,6 @@
 .estimate {
   img {
-    border-radius: 5px;
+    border-radius: var(--md-radius-sm);
     width: 100%;
     display: block;
     height: auto;

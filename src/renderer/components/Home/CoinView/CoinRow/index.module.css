@@ -1,4 +1,6 @@
 .row {
+  /* 2026-11-19：等宽数字，避免滚动时涨跌幅/金额抖动 */
+  font-variant-numeric: tabular-nums;
   /* display: flex; */
   width: 100%;
   padding: 8px 8px;

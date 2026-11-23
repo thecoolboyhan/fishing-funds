@@ -46,11 +46,22 @@
   box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  transition: filter 0.2s;
+  border-radius: var(--md-radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: filter var(--md-dur-short) var(--md-ease-standard),
+    border-color var(--md-dur-short) var(--md-ease-standard),
+    transform var(--md-dur-short) var(--md-ease-standard);
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
+    border-color: var(--primary-color);
     filter: brightness(104%);
+  }
+
+  /* 2026-11-20：按压下陷，比单纯变色更像「按到了」 */
+  &:active {
+    transform: scale(0.97);
   }
 }
 
@@ -71,9 +82,8 @@
 
 .cardMarket {
   flex: none;
-  font-size: calc(var(--base-font-size) * 0.7);
+  font-size: calc(var(--base-font-size) * 0.75);
   color: var(--reverse-text-color);
-  opacity: 0.55;
 }
 
 .cardPrice {
@@ -92,12 +102,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+.cardRange {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 6px;
+  margin-top: 1px;
+  /* 2026-11-23：原 0.7 倍字号 + opacity .75 叠加太糊，提到 0.8 倍、用实色不降透明度 */
+  font-size: calc(var(--base-font-size) * 0.8);
+  color: var(--secondary-main-text-color);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+
+  /* 铂金/钯金这类「元/千克」长价格（295,021.15）在 134px 卡宽内会顶边，
+     允许换行比截断数字好读；grid 行高会自动对齐 */
+  & > span {
+    white-space: nowrap;
+  }
+}
+
 .cardFooter {
   display: flex;
   justify-content: space-between;
   gap: 4px;
   margin-top: 2px;
-  font-size: calc(var(--base-font-size) * 0.7);
+  font-size: calc(var(--base-font-size) * 0.8);
   color: var(--secondary-main-text-color);
 }
 
@@ -106,12 +135,12 @@
   color: var(--reverse-text-color);
   white-space: nowrap;
   text-overflow: ellipsis;
-  opacity: 0.6;
+  /* 原 opacity .6 让美元副标题几乎看不清，去掉透明度 */
 }
 
 .cardTime {
   margin-top: 2px;
-  font-size: calc(var(--base-font-size) * 0.65);
-  color: var(--reverse-text-color);
-  opacity: 0.5;
+  font-size: calc(var(--base-font-size) * 0.75);
+  color: var(--secondary-main-text-color);
+  /* 原 0.65 倍 + opacity .5 是卡片里最糊的一行；提到 0.75 倍、用实色 */
 }

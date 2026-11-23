@@ -31,5 +31,5 @@
   padding: 0;
 }
 .describe {
-  color: #fff;
+  color: var(--on-primary-color);
 }

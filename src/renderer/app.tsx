@@ -10,6 +10,7 @@ import '@/styles/antd.css';
 import '@/styles/button.css';
 import '@/styles/color.css';
 import '@/styles/common.css';
+import '@/styles/motion.css';
 import '@/app.css';
 
 const HomePage = React.lazy(() => import('@/containers/HomePage'));
@@ -69,6 +70,7 @@ const router = createMemoryRouter(
 const App: React.FC<Record<string, unknown>> = () => {
   const darkMode = useAppSelector((state) => state.setting.darkMode);
   const baseFontSizeSetting = useAppSelector((state) => state.setting.systemSetting.baseFontSizeSetting);
+  const reverseRiseFallSetting = useAppSelector((state) => state.setting.systemSetting.reverseRiseFallSetting);
   const lowKeySetting = useAppSelector((state) => state.setting.systemSetting.lowKeySetting);
   const lowKeyDegreeSetting = useAppSelector((state) => state.setting.systemSetting.lowKeyDegreeSetting);
   const { customThemeColorEnable, customThemeColorSetting, originPrimaryColor } = useThemeColor();
@@ -80,6 +82,7 @@ const App: React.FC<Record<string, unknown>> = () => {
         lowKey: lowKeySetting,
         lowKeyDegree: lowKeyDegreeSetting,
         baseFontSize: baseFontSizeSetting,
+        reverseRiseFall: !!reverseRiseFallSetting,
         primaryColor: customThemeColorEnable ? customThemeColorSetting || originPrimaryColor : originPrimaryColor,
       }}
     >

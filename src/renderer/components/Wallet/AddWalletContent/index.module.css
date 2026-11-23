@@ -15,5 +15,5 @@
 
 .none {
   font-size: var(--base-font-size);
-  color: #d65746;
+  color: var(--danger-color);
 }

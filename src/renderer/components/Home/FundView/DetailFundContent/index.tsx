@@ -144,7 +144,7 @@ export const DetailFund: React.FC<DetailFundProps> = (props) => {
 
   return (
     <>
-      <div className={styles.content}>
+      <div className={clsx(styles.content, 'md-scale-in')}>
         <div className={styles.container}>
           <div className={styles.titleRow}>
             <h3 className="copify">{fund?.fixName}</h3>

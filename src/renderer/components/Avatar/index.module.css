@@ -18,7 +18,8 @@
   }
 
   span {
-    color: #fff;
+    /* 字色由 GetContrastText 按底色算好，从父级继承，不再固定白字 */
+    color: inherit;
     font-weight: 500;
     font-size: calc(var(--base-font-size) * 1.2);
   }

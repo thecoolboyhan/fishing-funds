@@ -1,5 +1,8 @@
 .content {
-  color: '#fff';
+  /* 2026-11-20：原值是 color: '#fff' —— 引号使整条声明失效，提示气泡里实际用的是
+     antd 默认字色；而气泡底色通过 color="var(--primary-color)" 换成了主色。
+     改为跟随 tag 文字色（colorTextLightSolid），与主色背景配套。 */
+  color: var(--on-primary-color);
 }
 .name {
   font-weight: bold;

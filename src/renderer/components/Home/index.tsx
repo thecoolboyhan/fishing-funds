@@ -169,6 +169,7 @@ function StockGroup() {
 
 function CoinGroup() {
   // 2026-11-16：货币 tab 改为「现价看板」，子 tab 按品类分组（原为上涨/下跌筛选）
+  // 2026-11-19：增补能源/黑色/农产品品种，子 tab 合并为 5 个避免过碎
   return (
     <GroupTab
       tabKey={Enums.TabKeyType.Coin}
@@ -185,11 +186,16 @@ function CoinGroup() {
         },
         {
           key: String(2),
-          label: '工业金属',
-          children: <CoinView category="base" />,
+          label: '金属',
+          children: <CoinView category={['base', 'black']} />,
         },
         {
           key: String(3),
+          label: '能源·农产',
+          children: <CoinView category={['energy', 'agri']} />,
+        },
+        {
+          key: String(4),
           label: '外汇·BTC',
           children: <CoinView category={['currency', 'crypto']} />,
         },
@@ -215,7 +221,20 @@ const Body = () => {
     [bottomTabsSetting]
   );
 
-  return <Tabs renderTabBar={() => <></>} activeKey={String(tabsActiveKey)} animated={true} destroyOnHidden items={items} />;
+  // 2026-11-20：关闭 antd 自带的横向滑动（animated），改为 key 重挂载 + CSS fade-through。
+  // 原来的左右平移在 5 个大 tab 之间位移过长，视觉上是「甩过去」；fade-through 更接近
+  // Material 的页面级转场，也更省合成层。antd 的 Tabs 结构不变，只多挂一个动画类。
+  return (
+    <Tabs
+      key={String(tabsActiveKey)}
+      className="md-page-enter"
+      renderTabBar={() => <></>}
+      activeKey={String(tabsActiveKey)}
+      animated={false}
+      destroyOnHidden
+      items={items}
+    />
+  );
 };
 
 const Home: React.FC<HomeProps> = () => {

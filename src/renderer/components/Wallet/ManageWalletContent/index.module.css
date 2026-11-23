@@ -9,7 +9,7 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  border-radius: 10px;
+  border-radius: var(--md-radius-md);
   margin-bottom: 10px;
   position: relative;
   padding: 10px;
@@ -74,6 +74,6 @@
   }
 }
 .checkbox {
-  fill: var(--primary-color);
+  fill: var(--primary-text-color);
   z-index: 2;
 }

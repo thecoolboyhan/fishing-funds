@@ -58,13 +58,15 @@ const QuickSearch: React.FC<QuickSearchProps> = (props) => {
   return searchWebsites.length ? (
     <div className={styles.content}>
       {searchWebsites.map((site) => {
-        const color = site.color || colorHash.hex(site.name);
+        const readable = Utils.GetReadablePair(site.color || colorHash.hex(site.name));
         return (
           <div
             key={site.name}
             className={clsx(styles.item, 'brightness')}
             style={{
-              background: color,
+              background: readable.background,
+              // 底色来自哈希或写死的 #f50，白字只有 1.6~3.1:1，按实际对比度挑字色
+              color: readable.color,
             }}
             onClick={() => openWebView(site.url)}
           >

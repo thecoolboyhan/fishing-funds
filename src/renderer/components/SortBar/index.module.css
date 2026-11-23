@@ -72,7 +72,7 @@
     margin-right: 10px;
     height: 14px;
     width: 14px;
-    fill: var(--primary-color);
+    fill: var(--primary-text-color);
   }
 }
 .mode {

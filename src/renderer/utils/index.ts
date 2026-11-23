@@ -114,12 +114,47 @@ export function GetStylePropertyValue(varible: keyof typeof CONST.VARIBLES) {
   return (value || '').trim();
 }
 
+/**
+ * 颜色变量缓存（2026-11-19）。
+ * 原实现每次调用都做 N 次 getComputedStyle（每次强制样式重算），而 GetValueColor 在列表里
+ * 每行要调 2~3 次 —— 自选 50 只基金滚动时实测上千次重算。变量值只随主题变化，
+ * 故缓存到主题变更时由 ThemeProvider 调 InvalidateColorCache() 失效。
+ */
+let variblesColorCache: Record<string, string> | null = null;
+
+/**
+ * 主题 token 覆盖层（2026-11-23 修复）。
+ * 原实现只从 getComputedStyle(:root) 读变量，而 ThemeProvider 的 <style> 要等 commit 后
+ * 才生效。主题切换时子组件在 render 阶段调 GetValueColor 读到的仍是上一帧旧色；echarts
+ * 把颜色写进 option 后不再重算，于是图表涨跌色一直停留在旧主题。单纯在 effect 里清缓存
+ * 无效——清完重读 DOM 仍是旧值。
+ * 解法：由全局 ThemeProvider 在 render 阶段用最新 token 直接注入全部变量，读值不再依赖
+ * DOM commit 时序。带 target 的 ThemeProvider（设置页主题预览）不注入，避免污染全局。
+ */
+let variblesColorOverride: Partial<Record<keyof typeof CONST.VARIBLES, string>> = {};
+
+/** 全局 ThemeProvider 在 render 阶段注入当前主题的全部变量值 */
+export function SetVariblesColorOverride(map: Partial<Record<keyof typeof CONST.VARIBLES, string>>) {
+  variblesColorOverride = map;
+}
+
+/** 兼容旧调用点：清 DOM 缓存即可，token 覆盖层不受影响 */
+export function InvalidateColorCache() {
+  variblesColorCache = null;
+}
+
 export function GetVariblesColor(): Record<keyof typeof CONST.VARIBLES, string> {
-  return Object.keys(CONST.VARIBLES).reduce<Record<string, string>>((colorMap, varible) => {
+  // 覆盖层齐全时直接用它，彻底绕开 getComputedStyle（同步、且一定是当前帧的值）
+  if (Object.keys(variblesColorOverride).length === Object.keys(CONST.VARIBLES).length) {
+    return variblesColorOverride as Record<keyof typeof CONST.VARIBLES, string>;
+  }
+  if (variblesColorCache) return { ...variblesColorCache, ...variblesColorOverride } as Record<keyof typeof CONST.VARIBLES, string>;
+  variblesColorCache = Object.keys(CONST.VARIBLES).reduce<Record<string, string>>((colorMap, varible) => {
     const color = GetStylePropertyValue(varible as keyof typeof CONST.VARIBLES);
     colorMap[varible] = color;
     return colorMap;
   }, {});
+  return { ...variblesColorCache, ...variblesColorOverride } as Record<keyof typeof CONST.VARIBLES, string>;
 }
 
 export function Parsepingzhongdata(code: string) {
@@ -301,6 +336,67 @@ export function GetValueColor(number?: number | string) {
 
 export function NotEmpty<TValue>(value: TValue | null | undefined): value is TValue {
   return value !== null && value !== undefined;
+}
+
+/** 2026-11-20：WCAG 对比度工具。
+ * 背景：color-hash（HSL L=0.6）生成的底色配白字，实测 65 个真实标签样本里
+ * 96.9% 不达 AA，均值 2.80:1、最差 1.60:1（「中国平安」= #d2d260 黄），
+ * 标签、头像首字、WebApp 图标首字全部在此列。
+ * 不再一律白字，改为按实际对比度在黑白之间二选一。 */
+export function GetContrastText(bg: string, light = '#ffffff', dark = '#1a1a1a') {
+  try {
+    const background = Color(bg);
+    return background.contrast(Color(light)) >= background.contrast(Color(dark)) ? light : dark;
+  } catch (error) {
+    return light;
+  }
+}
+
+/** 背景色 + 可读字色一起返回。
+ * GetContrastText 在「中间明度」的底色上会撞到物理上限（黑/白都到不了 4.5，
+ * 实测 #9560d2 白 4.30、黑 4.32），所以这里允许把底色沿明度往最近的一端微调，
+ * 直到其中一种字色达标。仅用于自身可自由改色的场景（哈希标签、头像、图标）。 */
+export function GetReadablePair(bg: string, min = 4.5) {
+  const light = '#ffffff';
+  const dark = '#1a1a1a';
+
+  try {
+    let background = Color(bg);
+
+    for (let i = 0; i < 24; i += 1) {
+      if (background.contrast(Color(light)) >= min) {
+        return { background: background.hex(), color: light };
+      }
+      if (background.contrast(Color(dark)) >= min) {
+        return { background: background.hex(), color: dark };
+      }
+      // 两边都不够：亮底往白走、暗底往黑走
+      background = background.mix(Color(background.luminosity() >= 0.19 ? '#ffffff' : '#000000'), 0.06);
+    }
+
+    return { background: background.hex(), color: GetContrastText(background.hex(), light, dark) };
+  } catch (error) {
+    return { background: bg, color: light };
+  }
+}
+
+/** 把前景色沿「远离背景」的方向微调，直到与背景的对比度达标。
+ * 用途：同一个主色 seed 在浅色模式下要能当文字色（需够深），
+ * 在深色模式下也要能当文字色（需够浅），单一值无法两全。 */
+export function MakeReadableOn(fg: string, bg: string, min = 4.5) {
+  try {
+    const background = Color(bg);
+    const toWhite = background.luminosity() < 0.5;
+    let result = Color(fg);
+
+    for (let i = 0; i < 24 && result.contrast(background) < min; i += 1) {
+      result = result.mix(Color(toWhite ? '#ffffff' : '#000000'), 0.08);
+    }
+
+    return result.hex();
+  } catch (error) {
+    return fg;
+  }
 }
 
 export function CalcZDHC(list: number[]) {

@@ -11,6 +11,7 @@ declare namespace System {
     opacitySetting: number; // 透明度
     baseFontSizeSetting: number; // 全局基础字体大小
     systemThemeSetting: import('@/utils/enums').SystemThemeType; // 系统主题
+    reverseRiseFallSetting: boolean; // 涨跌色反转：false=红涨绿跌(A股)，true=绿涨红跌(美股/币圈)
 
     bottomTabsSetting: { key: import('@/utils/enums').TabKeyType; name: string; show: boolean }[]; // 底栏配置
 

@@ -3,6 +3,7 @@
 }
 .title {
   em {
-    color: red;
+    /* 关键词高亮：跟随主题语义色，深色模式下不再直接甩纯红 */
+    color: var(--danger-color);
   }
 }

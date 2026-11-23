@@ -129,7 +129,26 @@
           },
           electron: {
             shell: { openExternal: function (url) { return whenReady(function (p) { return p.openExternal({ url: url }); }); } },
-            ipcRenderer: { invoke: noop, on: function () { return null; }, removeListener: noop, removeAllListeners: noop },
+            ipcRenderer: {
+              // 2026-11-19：原来 invoke/on 一律 noop，导致安卓端「跟随系统深色」永远失效
+              // （主进程推送的 nativeTheme-updated 事件永远收不到），只能手动切深浅色。
+              // 这里用 WebView 自身的 prefers-color-scheme 模拟该事件，其余 channel 保持 noop。
+              invoke: function (channel) {
+                if (channel === 'is-support-blur-bg') return Promise.resolve(false);
+                return noop(channel);
+              },
+              on: function (channel, listener) {
+                if (channel !== 'nativeTheme-updated' || typeof window.matchMedia !== 'function') return null;
+                var mq = window.matchMedia('(prefers-color-scheme: dark)');
+                var notify = function () { listener && listener({}, { darkMode: !!mq.matches }); };
+                if (mq.addEventListener) mq.addEventListener('change', notify);
+                else if (mq.addListener) mq.addListener(notify);
+                setTimeout(notify, 0); // 立刻同步一次，避免首帧按默认浅色渲染
+                return mq;
+              },
+              removeListener: noop,
+              removeAllListeners: noop,
+            },
             dialog: { showMessageBox: dismissedBox, showSaveDialog: canceledSave, showOpenDialog: canceledOpen },
             app: {
               setLoginItemSettings: noop,
@@ -166,6 +185,25 @@
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' data: blob:" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="stylesheet" href="./mobile.css" />
+    <!-- 2026-11-19：首屏兜底配色。ThemeProvider 的 CSS 变量是 React 挂载后才注入的，
+         在此之前 :root 的 var(--inner-color) 全部无效 → 深色模式下会白闪一下。
+         这里按系统偏好预置最小值，挂载后立即被 ThemeProvider 覆盖。 -->
+    <style>
+      :root {
+        --inner-color: #f5f5f5;
+        --main-text-color: #1f1f1f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --inner-color: #141414;
+          --main-text-color: #e8e8e8;
+        }
+      }
+      html,
+      body {
+        background-color: var(--inner-color);
+      }
+    </style>
     <title>Fishing Funds</title>
   </head>
   <body>

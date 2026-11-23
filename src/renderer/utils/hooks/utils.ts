@@ -765,7 +765,9 @@ export function useInputShortcut(initial: string) {
 }
 
 export function useThemeColor() {
-  const originPrimaryColor = '#2c7df5';
+  // 2026-11-20：默认主色由 #2c7df5 调深到 #1F6FE5 —— 白底对比度 3.92:1 → 4.70:1（达 AA），
+  // 色相只偏深一档，视觉上几乎无差，但链接/小号主色文字终于看得清。
+  const originPrimaryColor = '#1F6FE5';
   const themeColorTypeSetting = useAppSelector((state) => state.setting.systemSetting.themeColorTypeSetting);
   const customThemeColorSetting = useAppSelector((state) => state.setting.systemSetting.customThemeColorSetting);
   const customThemeColorEnable = themeColorTypeSetting === Enums.ThemeColorType.Custom;

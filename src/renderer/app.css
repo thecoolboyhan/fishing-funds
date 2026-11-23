@@ -16,7 +16,7 @@ body::-webkit-scrollbar {
 }
 
 a {
-  color: var(--primary-color);
+  color: var(--primary-text-color);
 }
 
 h3 {
@@ -34,12 +34,23 @@ h3 {
   }
 }
 
+/* 2026-11-20：必填星标。antd 表单必填项也用 colorError，这里对齐同一语义色；
+   原来写死 red(#f00) 在白底只有 4.0:1，不达 AA。 */
 .red {
-  color: red;
+  color: var(--danger-color);
 }
 
+/* 2026-11-19：原为全局 outline:none，键盘用户在主界面完全看不到焦点位置。
+   原生控件（input/select/textarea，antd 自己管焦点样式）保持关闭，只给
+   自绘的可点击元素（role=button / a）恢复可见焦点环。 */
 :focus-visible {
   outline: none;
+}
+
+[role='button']:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
 }
 
 .max-content {

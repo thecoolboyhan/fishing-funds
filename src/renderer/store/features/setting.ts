@@ -34,6 +34,7 @@ export const defaultSystemSetting: System.Setting = {
   opacitySetting: 1,
   baseFontSizeSetting: 13, // 全局基准字号（整个 UI 以此为比例基准）；原默认 12，调大以便在手机/小窗上看得清
   systemThemeSetting: Enums.SystemThemeType.Auto,
+  reverseRiseFallSetting: false, // 默认红涨绿跌（A 股习惯）；美股/币圈用户可在设置里反转
 
   bottomTabsSetting: [
     {

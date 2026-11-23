@@ -1,5 +1,6 @@
 import React from 'react';
 import colorHash from '@/utils/colorHash';
+import { GetReadablePair } from '@/utils';
 import styles from './index.module.css';
 
 interface ColorfulTagsProps {
@@ -10,9 +11,13 @@ const ColorfulTags: React.FC<ColorfulTagsProps> = ({ tags }) => {
   return (
     <div className={styles.tags}>
       {tags.map((tag) => {
-        const color = colorHash.hex(tag);
+        const readable = GetReadablePair(colorHash.hex(tag));
         return (
-          <div key={tag} className={styles.tag} style={{ background: color }}>
+          <div
+            key={tag}
+            className={styles.tag}
+            style={{ background: readable.background, color: readable.color }}
+          >
             {tag}
           </div>
         );

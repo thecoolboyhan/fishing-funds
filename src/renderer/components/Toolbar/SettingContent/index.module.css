@@ -175,14 +175,14 @@
 .colorPicker {
   height: 16px;
   width: 16px;
-  border-radius: 2px;
+  border-radius: var(--md-radius-xs);
   box-sizing: border-box;
 }
 .colorBlock {
   display: inline-block;
   height: 16px;
   width: 16px;
-  border-radius: 2px;
+  border-radius: var(--md-radius-xs);
   background-color: var(--primary-color);
   transition: background 0.2s;
 }

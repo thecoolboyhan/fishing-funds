@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/github/license/thecoolboyhan/fishing-funds?color=blue" alt="License GPL-3.0">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Android-black" alt="Platform">
   <img src="https://img.shields.io/github/v/release/thecoolboyhan/fishing-funds?include_prereleases&color=green" alt="Release">
-  <img src="https://img.shields.io/badge/%E6%95%B0%E6%8D%AE%E6%BA%90-%E5%A4%A9%E5%A4%A9%E5%9F%BA%E9%87%91%20%2F%20%E8%9A%82%E8%9A%81%20%2F%20%E5%90%8C%E8%8A%B1%E9%A1%BA%20%2F%20%E8%85%BE%E8%AE%AF-orange" alt="Data Source">
+  <img src="https://img.shields.io/badge/%E6%95%B0%E6%8D%AE%E6%BA%90-%E6%96%B0%E6%B5%AA%E8%B4%A2%E7%BB%8F%20%2F%20%E5%90%8C%E8%8A%B1%E9%A1%BA%20%2F%20Gate.io-orange" alt="Data Source">
 </p>
 
 > 股票 · 基金 · 大盘指数 · 板块 · 加密货币 的**行情常驻工具**。
@@ -63,6 +63,23 @@
 - 支持 OpenAI 兼容接口用于基金一键录入等 AI 功能，不收集、不上传用户的 API Key
 - 纯个人自用状态栏小插件，完全开源免费，仅供学习交流
 - **安卓端**：全屏适配、触摸友好的字号（基准 13px，可在设置中调到 16px）、首次启动内置示例自选便于上手
+
+### 现价看板（v0.3.0 起，持续扩充至 v0.3.5）
+
+原「货币」页已从加密币自选列表改为**现价看板**，一屏覆盖多类行情：
+
+| 分类 | 品种 | 计价 |
+|---|---|---|
+| 汇率 | 美元兑人民币（在岸 / 离岸） | 原口径 |
+| 贵金属 | 伦敦金 / 银、纽约铂 / 钯、沪金 / 沪银 | 元/克 |
+| 工业金属 | 伦铜 / 锌 / 镍 / 锡、沪铜 / 铝 / 锌 / 镍 / 铅 | 元/千克 |
+| 黑色 / 能源 / 农产 | 螺纹钢 / 焦煤 / 铁矿石、WTI / 布伦特 / 上海原油、生猪 / 玉米 / 豆一 | 元/千克、元/桶 |
+| 数字货币 | 比特币、以太坊 | **BTC 美元**、ETH 元 |
+
+- 所有卡片可点开详情：开 / 高 / 低 / 昨收 / 振幅 + 历史日线 + 相关资讯。
+- 内外盘配对额外显示溢价（如沪金 vs 伦敦金），含税品种有明确标注。
+- 涨红跌绿为默认（A 股习惯）；**设置 → 外观 → 涨跌色反转**可切换为绿涨红跌（美股 / 币圈习惯）。
+- 数据源以新浪财经 + Gate.io 为主，无需 API Key；详见 [`AGENTS.md`](AGENTS.md) §10.2 / §10.10。
 
 > ⚠️ 软件中所有数据仅供参考，收益或亏损以当天实际为准；走势、排行数据均来自第三方网站，不代表作者观点。
 
@@ -154,7 +171,11 @@ cd android && ./gradlew assembleDebug     # 需 JDK 17 + ANDROID_HOME
 api.coingecko.com
 ```
 
-> 2026-10 起货币排行榜数据源由 CoinCap 切换为 Coingecko `/coins/markets`（CoinCap v2 API 已停止服务，连接即失败），货币模块现统一走 Coingecko 一个域。
+> 2026-10 起货币排行榜数据源由 CoinCap 切换为 Coingecko `/coins/markets`（CoinCap v2 API 已停止服务，连接即失败），货币排行榜仍走 Coingecko 一个域。
+>
+> 2026-11-18 起「货币」tab 的现价看板不再依赖 Coingecko：BTC 走新浪 `hq.sinajs.cn`，ETH 与历史日线走 `api.gateio.ws`，国内直连可用；历史中的美元品种按当日美元兑人民币汇率折算，金银显示元/克、其余金属显示元/千克。点击任意现价卡片可查看历史走势与相关资讯。
+>
+> 2026-11-19 起现价看板扩至 **28 个品种**：新增能源（WTI、布伦特、上海原油，元/桶）、内盘有色（沪铝/沪锌/沪镍/沪铅）与黑色系（螺纹钢、焦煤，铁矿石归位）、农产品（生猪、玉米、豆一）；卡片显示当日高低，详情补充开盘/最高/最低/昨收/振幅，并对沪伦同标的给出**内外盘溢价**（白银/铜/镍带 13% 增值税差，黄金免征故接近平价）。
 
 ## AI 识别录入
 

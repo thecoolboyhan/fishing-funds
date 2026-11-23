@@ -447,6 +447,7 @@ export function useMappingLocalToSystemSetting() {
   const { hashId } = useToken();
   const {
     systemThemeSetting,
+    reverseRiseFallSetting,
     autoStartSetting,
     alwaysOnTopSetting,
     lowKeySetting,
@@ -504,7 +505,10 @@ export function useMappingLocalToSystemSetting() {
   }, [visibleHotkey]);
   useEffect(() => {
     dispatch(syncVaribleColors());
-  }, [hashId]);
+    // 涨跌色反转只改 CSS 变量、不改 antd token，hashId 不变；需把开关本身也作为依赖，
+    // 否则用 redux varibleColors 的 echarts 图表反转后仍停留在旧配色。
+    // 此 effect 在 commit 后运行，ThemeProvider 已在 render 阶段注入新覆盖层，读到的是新色。
+  }, [hashId, reverseRiseFallSetting]);
   useEffect(() => {
     ipcRenderer.invoke('set-translate-hotkey', translateHotkey);
   }, [translateHotkey]);

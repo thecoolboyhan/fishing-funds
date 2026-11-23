@@ -11,20 +11,21 @@
     justify-content: center;
     border-radius: 50%;
     border: 1px solid var(--block-border-color);
-    background-color: #fff;
+    /* 兜底底色跟随主题；真正的底色由内联 background 决定 */
+    background-color: var(--inner-color);
     transition: all 0.2s;
     box-sizing: border-box;
     cursor: pointer;
 
     svg {
-      fill: #fff;
+      fill: currentColor;
     }
 
     i {
       font-style: normal;
       text-align: center;
       font-weight: 500;
-      color: #fff;
+      color: inherit;
       font-size: 14px;
       line-height: 18px;
     }

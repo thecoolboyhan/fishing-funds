@@ -10,7 +10,7 @@ export interface EmptyProps {
 }
 const EmptyContent: React.FC<EmptyProps> = ({ text, className }) => {
   return (
-    <div className={clsx(styles.content, className)}>
+    <div className={clsx(styles.content, 'md-fade-in', className)}>
       <div className={styles.img}>
         <Empty description={text || ''} />
       </div>

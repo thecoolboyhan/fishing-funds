@@ -36,6 +36,7 @@ import { Provider } from 'react-redux';
 import chinaMap from '@/static/map/china.json';
 import store from '@/store';
 import App from '@/app';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import * as Enhancement from '@/utils/enhancement';
 import '@ant-design/v5-patch-for-react-19';
 import 'dayjs/locale/zh-cn';
@@ -88,7 +89,9 @@ createRoot(document.getElementById('root')!).render(
     </style>
     <Provider store={store}>
       <IconContext.Provider value={{ size: '16px' }}>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </IconContext.Provider>
     </Provider>
   </ConfigProvider>

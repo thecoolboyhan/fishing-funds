@@ -1,0 +1,121 @@
+.content {
+  display: block;
+}
+
+.summary {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--md-radius-sm);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--main-text-color);
+}
+
+.market {
+  font-size: calc(var(--base-font-size) * 0.75);
+  color: var(--secondary-main-text-color);
+}
+
+.price {
+  margin: 4px 0 2px;
+  font-size: calc(var(--base-font-size) * 1.6);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.price small {
+  font-size: calc(var(--base-font-size) * 0.8);
+  font-weight: 400;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: calc(var(--base-font-size) * 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta span:last-child {
+  color: var(--secondary-main-text-color);
+  opacity: 0.75;
+}
+
+.time {
+  margin-top: 4px;
+  font-size: calc(var(--base-font-size) * 0.7);
+  color: var(--reverse-text-color);
+  opacity: 0.6;
+}
+
+.quote {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 4px 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.quoteItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.quoteLabel {
+  font-size: calc(var(--base-font-size) * 0.7);
+  color: var(--reverse-text-color);
+  opacity: 0.6;
+}
+
+.quoteValue {
+  font-size: calc(var(--base-font-size) * 0.85);
+  color: var(--main-text-color);
+}
+
+.spread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: var(--md-radius-xs);
+  background-color: var(--inner-color);
+  font-size: calc(var(--base-font-size) * 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.spreadLabel {
+  color: var(--secondary-main-text-color);
+}
+
+.spreadNote {
+  padding: 0 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--md-radius-xs);
+  font-size: calc(var(--base-font-size) * 0.68);
+  color: var(--reverse-text-color);
+  opacity: 0.8;
+}
+
+.spreadValue {
+  font-weight: 600;
+}
+
+.spreadPeer {
+  margin-left: auto;
+  color: var(--reverse-text-color);
+  opacity: 0.65;
+}

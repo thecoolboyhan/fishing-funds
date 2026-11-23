@@ -92,7 +92,7 @@ export const DetailStock: React.FC<DetailStockProps> = (props) => {
     }
   }
   return (
-    <div className={styles.content}>
+    <div className={clsx(styles.content, 'md-scale-in')}>
       <div className={styles.container}>
         <h3 className={styles.titleRow}>
           <span className="copify">{stock.name}</span>

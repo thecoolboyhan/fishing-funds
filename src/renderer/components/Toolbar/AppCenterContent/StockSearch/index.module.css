@@ -4,7 +4,7 @@
 
 .none {
   font-size: var(--base-font-size);
-  color: #d65746;
+  color: var(--danger-color);
 }
 
 .stock {
@@ -27,7 +27,7 @@
 
 .tag {
   padding: 2px 3px;
-  border-radius: 3px;
+  border-radius: var(--md-radius-xs);
   color: var(--main-text-color);
   border: 1px solid var(--main-text-color);
   font-size: calc(var(--base-font-size) * 5 / 6);

@@ -1,9 +1,24 @@
 declare namespace Price {
-  /** 现价看板分类 */
-  export type Category = 'currency' | 'precious' | 'base' | 'crypto';
+  /** 现价看板分类（2026-11-19 增 black/energy/agri） */
+  export type Category = 'currency' | 'precious' | 'base' | 'black' | 'energy' | 'agri' | 'crypto';
 
   /** 计价币种 */
   export type Currency = 'USD' | 'CNY';
+
+  /** 统一口径：g=元/克、kg=元/千克、bbl=元/桶、cny=元、usd=美元（不折人民币，如 BTC） */
+  export type TargetUnit = 'g' | 'kg' | 'bbl' | 'cny' | 'usd';
+
+  /** 历史走势点（time 为毫秒时间戳，price 已按统一口径折人民币） */
+  export interface HistoryPoint {
+    time: number;
+    price: number;
+  }
+
+  export interface HistoryResult {
+    prices: HistoryPoint[];
+    /** 图表 Y 轴单位文案，如「元/克」 */
+    unit: string;
+  }
 
   /**
    * 统一行情条目。
@@ -29,6 +44,8 @@ declare namespace Price {
     low?: number;
     open?: number;
     prevClose?: number;
+    /** 振幅 % =（高 − 低）/ 昨收 × 100，由 SelectFromParsed 统一计算 */
+    amplitude?: number;
     /** MM-DD HH:mm */
     updateTime: string;
     /** 原始美元报价文案，人民币化后作副标题，如「$3885.65 美元/盎司」 */

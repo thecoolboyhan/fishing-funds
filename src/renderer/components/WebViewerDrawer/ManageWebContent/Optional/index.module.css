@@ -26,7 +26,7 @@
   }
 
   .remove {
-    fill: red;
+    fill: var(--danger-color);
     &:hover {
       cursor: pointer;
     }
