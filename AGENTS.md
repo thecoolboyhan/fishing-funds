@@ -644,6 +644,11 @@ docs: 更新 AGENTS/README/博客介绍到 v0.3.5
 > 说明：上周（11-16~11-20）的 v0.3.0 之后改动（现价看板品种扩容、内外盘价差、
 > Material 3 动效、ErrorBoundary、AnimatedNumber、圆角收敛等）原本也一直未提交，
 > 本轮一并纳入提交（详见 §10.5~10.9）。
+>
+> **提交结果（2026-11-23 15:09）**：`fbc3945`（79 文件），已 push `android-capacitor`；
+> annotated tag `v0.3.5` 已 push，触发 CI `Build Release (All Platforms)`
+> （mac dmg / win nsis / linux AppImage / android apk，四端产物上传 GitHub Release draft）。
+> 博客文章同步提交在 `thecoolboyhan.github.io` 仓库 `c643bcb`。
 
 #### 10.10.1 主题切换后颜色滞后（根治）
 
